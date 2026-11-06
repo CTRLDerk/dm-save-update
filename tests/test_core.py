@@ -115,6 +115,19 @@ class CompareTest(unittest.TestCase):
         changes, _ = core.compare(mod, save)
         self.assertTrue(by(changes, section='circuits', path='officialName', old='old name', new='6 Hours of Track 1'))
 
+    def test_image_paths_made_absolute_by_the_game(self):
+        self.assertTrue(core.same_value('./sponsors/a b.png', 'D:/Steam/steamapps/common/Delta Manager/resources/sponsors/a b.png'))
+        self.assertTrue(core.same_value('./teams/x.png', 'D:\\Steam\\steamapps\\common\\Delta Manager\\resources\\teams/x.png'))
+        self.assertFalse(core.same_value('./sponsors/a.png', 'D:/Steam/.../resources/sponsors/b.png'))
+        self.assertFalse(core.same_value('Red Bull', 'red bull'))
+        mod = make_mod()
+        mod['sponsors'][0]['logo'] = './sponsors/acme.png'
+        save = write_save(self.dir)
+        save.season['_mainCategoryBackup']['data']['sponsorsDatabase'][0]['logo'] = \
+            'E:/SteamLibrary/steamapps/common/Delta Manager/resources/sponsors/acme.png'
+        changes, _ = core.compare(mod, save)
+        self.assertFalse(by(changes, section='sponsors', path='logo'))
+
     def test_sponsor_values(self):
         changes, _ = core.compare(make_mod(), write_save(self.dir))
         self.assertTrue(by(changes, section='sponsors', path='baseAmount', old=1.0, new=2.0))

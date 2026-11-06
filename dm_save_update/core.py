@@ -335,11 +335,40 @@ def _diff_dict(old, new, path, category, protect, out, protected_by=None, apply=
                 tag = n.get('displayName') or n.get('name') or n.get('id') or i
                 elem = sub[:-1] + ['%s[%s]' % (key, tag)]
                 _diff_dict(o, n, elem, category, protect, out, action or protect.get(key), apply)
-        elif oval != nval:
+        elif not same_value(oval, nval):
             out.append(Change(category, 'settings', '', '.'.join(sub), oval, nval, action or UPDATE,
                               _note_for(sub, action)))
             if apply and not action:
                 old[key] = copy.deepcopy(nval)
+
+
+_IMAGE_RE = re.compile(r'\.(png|jpe?g|webp|gif|svg)$', re.I)
+
+
+def image_key(path):
+    """The game turns ./sponsors/x.png into D:/Steam/.../resources/sponsors/x.png when it loads a save.
+    Both point to the same file: compare them from the resources folder on."""
+    p = path.replace('\\', '/').strip()
+    low = p.lower()
+    i = low.rfind('/resources/')
+    if i >= 0:
+        p = p[i + len('/resources/'):]
+    elif p.startswith('./'):
+        p = p[2:]
+    return p.lstrip('/').lower()
+
+
+def same_value(a, b):
+    """Equal for an update: image paths that point to the same resources file count as equal."""
+    if isinstance(a, str) and isinstance(b, str):
+        if a == b:
+            return True
+        return bool(_IMAGE_RE.search(a) and _IMAGE_RE.search(b)) and image_key(a) == image_key(b)
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(same_value(a[k], b[k]) for k in a)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(same_value(x, y) for x, y in zip(a, b))
+    return a == b
 
 
 def _same_shape_dict_lists(a, b):
@@ -379,7 +408,7 @@ def _diff_list_by_id(old_list, new_list, category, section, keep, out, apply=Fal
             # The game moves a circuit's mod name to officialName and puts the track name in name.
             if key == 'name' and section in ('circuits', 'reserveCircuits') and 'officialName' in cur:
                 target = 'officialName'
-            if cur.get(target) != nval:
+            if not same_value(cur.get(target), nval):
                 out.append(Change(category, section, _label(cur), target, cur.get(target), nval, UPDATE))
                 if apply:
                     cur[target] = copy.deepcopy(nval)

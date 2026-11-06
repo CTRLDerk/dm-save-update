@@ -11,6 +11,7 @@ First public release.
 - Kept by default: rules changed by era votes in your career and values drawn again at a major regulation (tick boxes to overwrite them anyway).
 - Always kept: what the game sets itself at career start (`regulations.baseLimits`, the circuit name in `name`; the mod's circuit name is compared with `officialName`), the calendar (week, event type, sprint weekend), and everything that is your career (drivers, teams, staff, contracts, results, history).
 - New circuits and sponsors are listed but not added.
+- Image paths (logos, flags) count as equal when they point to the same file: the game turns `./sponsors/x.png` into an absolute path when it loads a save.
 - A save of another mod is recognised: nothing is compared.
 - **Save report…** writes the list to a text file.
 
@@ -22,4 +23,4 @@ First public release.
 
 **Command line:** `--report`, `--apply`, `--list-backups`, `--restore`.
 
-Checked on real saves: a new GTWC career shows 0 updates; older GTWC careers show 65–70 circuit updates that match the mod's changelog; an AOS save backup shows the changes in all three series; applying and restoring a copy of a GTWC career gives 0 updates afterwards and the original files back byte for byte.
+Checked on real saves: a new GTWC career shows 0 updates; older GTWC careers show 65–70 circuit updates that match the mod's changelog; an AOS save backup shows the changes in all three series; applying and restoring a copy of a GTWC career gives 0 updates afterwards and the original files back byte for byte. A GTWC spectator career was updated (70 circuit updates), loaded and saved again in the game: the new values stayed, week, results and teams unchanged.
