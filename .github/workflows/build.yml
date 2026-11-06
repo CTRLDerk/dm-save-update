@@ -21,7 +21,7 @@ jobs:
       - name: Tests
         run: python -m unittest discover -s tests -v
       - name: Release text can be made for this version
-        run: python tools/release_notes.py "v$(python -c 'import dm_save_update as d; print(d.__version__)')"
+        run: python tools/release_notes.py "v$(python -c 'import dm_save_update as d; print(d.__version__)')" --out release-check.md
       - name: Window check (lists, selection, preview)
         run: python -m tests.gui_check
       - name: Build exe
@@ -52,7 +52,7 @@ jobs:
         run: |
           $hash = (Get-FileHash dist\DM-Save-Update.exe -Algorithm SHA256).Hash
           "$hash  DM-Save-Update.exe" | Out-File -Encoding ascii dist\DM-Save-Update.exe.sha256
-          python tools/release_notes.py "${{ github.ref_name }}" $hash | Out-File -Encoding utf8 release-body.md
+          python tools/release_notes.py "${{ github.ref_name }}" --sha256 $hash --out release-body.md
           Get-Content release-body.md
       - name: Release (tags only)
         if: startsWith(github.ref, 'refs/tags/v')

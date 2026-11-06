@@ -51,7 +51,11 @@ def _emit(text, report):
     if report:
         with open(report, 'w', encoding='utf-8') as fh:
             fh.write(text)
-    elif sys.stdout:
+    elif sys.stdout:  # None in the windowed exe
+        try:
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')  # Windows console: cp1252
+        except (AttributeError, ValueError):
+            pass
         sys.stdout.write(text)
     return 0
 

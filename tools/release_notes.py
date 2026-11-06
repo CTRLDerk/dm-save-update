@@ -1,6 +1,6 @@
 """Release text for a tag: the version's CHANGELOG section plus the install notes.
 
-    python tools/release_notes.py v0.2.0 [sha256 of the exe] > body.md
+    python tools/release_notes.py v0.2.0 [--sha256 HASH] [--out body.md]
 
 Fails when the tag does not match dm_save_update.__version__ or the CHANGELOG has no section for it.
 """
@@ -21,7 +21,13 @@ def section(version):
 
 
 def main(argv):
-    tag = argv[1]
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument('tag')
+    ap.add_argument('--sha256')
+    ap.add_argument('--out', help='write UTF-8 to this file (the Windows console cannot show every character)')
+    args = ap.parse_args(argv[1:])
+    tag = args.tag
     version = tag.lstrip('v')
     if version != __version__:
         sys.exit('Tag %s does not match __version__ %s' % (tag, __version__))
@@ -31,9 +37,15 @@ def main(argv):
     with open(os.path.join(ROOT, '.github', 'release-install.md'), encoding='utf-8') as fh:
         install = fh.read().strip()
     parts = [install, '## What is new in %s' % version, changes]
-    if len(argv) > 2:
-        parts.append('SHA-256 of `DM-Save-Update.exe`: `%s`' % argv[2].strip().lower())
-    sys.stdout.write('\n\n'.join(parts) + '\n')
+    if args.sha256:
+        parts.append('SHA-256 of `DM-Save-Update.exe`: `%s`' % args.sha256.strip().lower())
+    text = '\n\n'.join(parts) + '\n'
+    if args.out:
+        with open(args.out, 'w', encoding='utf-8', newline='\n') as fh:
+            fh.write(text)
+    else:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stdout.write(text)
 
 
 if __name__ == '__main__':
