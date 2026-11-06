@@ -9,5 +9,6 @@
 - Saves of another mod are recognised (no category in common).
 - Lists such as tyres and concepts show the field that differs (`dryTyres[General].durability`).
 - Report as text file; command line with `--report`.
+- Fix: the chosen mod or save was sometimes not found ("Choose a mod and a save first"); labels no longer contain backslashes and the selection is tracked by the tool itself. A mod file picked by hand stays in the list after Reload.
 - Reads only. Nothing is written to the save.
 - Windows exe built by GitHub Actions (PyInstaller), with a smoke test of the exe.

@@ -21,7 +21,8 @@ class App(tk.Tk):
         self.title('DM Save Update %s - preview only, nothing is written' % __version__)
         self.geometry('1180x720')
         self.minsize(900, 560)
-        self.saves, self.mods = [], []
+        self.saves, self.mods, self.extra_mods = [], [], []
+        self.sel = {'mod': -1, 'save': -1}
         self.changes, self.notes = [], []
         self.saves_dir = tk.StringVar(value=steam.find_saves_dir())
         self.workshop_dir = tk.StringVar(value=steam.find_workshop_dir())
@@ -54,6 +55,8 @@ class App(tk.Tk):
         ttk.Label(picks, text='Save').grid(row=1, column=0, sticky='w')
         self.save_box = ttk.Combobox(picks, state='readonly')
         self.save_box.grid(row=1, column=1, sticky='ew', padx=6)
+        self.mod_box.bind('<<ComboboxSelected>>', lambda e: self._remember('mod'))
+        self.save_box.bind('<<ComboboxSelected>>', lambda e: self._remember('save'))
         picks.columnconfigure(1, weight=1)
 
         opts = ttk.Frame(self)
@@ -96,25 +99,50 @@ class App(tk.Tk):
     def pick_mod_file(self):
         path = filedialog.askopenfilename(filetypes=[('Mod file', '*.json')])
         if path:
+            path = os.path.normpath(path)
             name = steam.peek_mod_name(path) or os.path.basename(path)
-            self.mods.insert(0, {'path': path, 'item': '', 'label': '%s  (%s)' % (name, path)})
-            self.mod_box['values'] = [m['label'] for m in self.mods]
-            self.mod_box.current(0)
+            # No backslashes in a label: Tk mangles them in a combobox list.
+            where = '/'.join(path.replace('\\', '/').split('/')[-2:])
+            self.extra_mods = [m for m in self.extra_mods if m['path'] != path]
+            self.extra_mods.insert(0, {'path': path, 'item': '', 'label': '%s  (file %s)' % (name, where)})
+            self._fill_mods(select=0)
+
+    def _fill_mods(self, select=0):
+        self.mods = self.extra_mods + steam.list_workshop_mods(self.workshop_dir.get())
+        self.mod_box['values'] = [m['label'] for m in self.mods]
+        self._select('mod', self.mod_box, select if self.mods else -1)
+
+    def _select(self, which, box, index):
+        self.sel[which] = index
+        if index >= 0:
+            box.current(index)
+        else:
+            box.set('')
+
+    def _remember(self, which):
+        box, items = (self.mod_box, self.mods) if which == 'mod' else (self.save_box, self.saves)
+        self.sel[which] = self._index(box, items, self.sel[which])
+
+    @staticmethod
+    def _index(box, items, fallback):
+        text = box.get()
+        for i, item in enumerate(items):
+            if item['label'] == text:
+                return i
+        i = box.current()
+        return i if i >= 0 else fallback
 
     def refresh_lists(self):
         self.saves = steam.list_saves(self.saves_dir.get())
-        self.mods = steam.list_workshop_mods(self.workshop_dir.get())
         self.save_box['values'] = [s['label'] for s in self.saves]
-        self.mod_box['values'] = [m['label'] for m in self.mods]
-        if self.saves:
-            self.save_box.current(0)
-        if self.mods:
-            self.mod_box.current(0)
-        self.status.set('%d saves, %d Workshop mods found.' % (len(self.saves), len(self.mods)))
+        self._select('save', self.save_box, 0 if self.saves else -1)
+        self._fill_mods(select=0)
+        self.status.set('%d saves, %d mods found.' % (len(self.saves), len(self.mods)))
 
     def run_compare(self):
-        mi, si = self.mod_box.current(), self.save_box.current()
-        if mi < 0 or si < 0:
+        mi = self._index(self.mod_box, self.mods, self.sel['mod'])
+        si = self._index(self.save_box, self.saves, self.sel['save'])
+        if not (0 <= mi < len(self.mods)) or not (0 <= si < len(self.saves)):
             messagebox.showinfo('DM Save Update', 'Choose a mod and a save first.')
             return
         mod_entry, save_entry = self.mods[mi], self.saves[si]
