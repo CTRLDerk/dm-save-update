@@ -98,6 +98,23 @@ class CompareTest(unittest.TestCase):
         self.assertTrue(by(changes, category='Truck', path='gameplay.raceRules.dryTyres[General].durability',
                            old=38, new=25))
 
+    def test_game_managed_fields(self):
+        mod = make_mod()
+        mod['generalData']['regulations']['baseLimits'] = {'speed': {'max': 25}}
+        mod['circuits'][0]['name'] = '6 Hours of Track 1'
+        save = write_save(self.dir)
+        save.categories()  # Cup sits in the backup
+        cup = save.season['_mainCategoryBackup']['data']
+        cup['general']['regulations']['baseLimits'] = {'speed': {'max': 100}}
+        cup['circuits'][0]['officialName'] = '6 Hours of Track 1'
+        changes, _ = core.compare(mod, save)
+        self.assertTrue(by(changes, path='regulations.baseLimits.speed.max', action=core.KEEP_GAME))
+        self.assertFalse(by(changes, section='circuits', path='name'))
+        self.assertFalse(by(changes, section='circuits', path='officialName'))
+        cup['circuits'][0]['officialName'] = 'old name'
+        changes, _ = core.compare(mod, save)
+        self.assertTrue(by(changes, section='circuits', path='officialName', old='old name', new='6 Hours of Track 1'))
+
     def test_sponsor_values(self):
         changes, _ = core.compare(make_mod(), write_save(self.dir))
         self.assertTrue(by(changes, section='sponsors', path='baseAmount', old=1.0, new=2.0))

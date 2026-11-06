@@ -56,6 +56,10 @@ ERA_RULE_KEYS = {
 # Settings the game draws again at every major regulation (modding guide, chapters 13, 15, 16).
 MAJOR_KEYS = {'globalPerformance', 'perfBonus', 'regulationAggressiveness'}
 
+# Set by the game itself when a career starts (checked on a new GTWC career, 2026-11-06):
+# the mod's regulations.baseLimits are replaced by the absolute caps (100 / 200).
+GAME_KEYS = {'baseLimits'}
+
 # The running career uses these from config.currentRegulation; the generalData value is used
 # again when the next regulation is generated.
 ACTIVE_REGULATION_KEYS = {'lapTimeCoefficients', 'qualifyingLapTimeCoefficients', 'freePracticeLapTimeCoefficients',
@@ -65,6 +69,7 @@ ACTIVE_REGULATION_KEYS = {'lapTimeCoefficients', 'qualifyingLapTimeCoefficients'
 UPDATE = 'update'
 KEEP_ERA = 'keep (era vote)'
 KEEP_MAJOR = 'keep (major regulation)'
+KEEP_GAME = 'keep (set by the game)'
 NOT_ADDED = 'not added'
 NOT_IN_MOD = 'not in mod'
 
@@ -281,7 +286,7 @@ def compare(mod, save, options=None):
         if major:
             notes.append('%s: a major regulation has already happened. Values the game draws again at a major '
                          '(%s) keep the save value.' % (cname, ', '.join(sorted(MAJOR_KEYS))))
-        protect = {}
+        protect = {k: KEEP_GAME for k in GAME_KEYS}
         if not options.overwrite_era:
             protect.update({k: KEEP_ERA for k in era_keys})
         if major and not options.overwrite_major:
@@ -353,8 +358,12 @@ def _diff_list_by_id(old_list, new_list, category, section, keep, out):
         for key, nval in ent.items():
             if key in keep or key in META_KEYS:
                 continue
-            if cur.get(key) != nval:
-                out.append(Change(category, section, _label(cur), key, cur.get(key), nval, UPDATE))
+            target = key
+            # The game moves a circuit's mod name to officialName and puts the track name in name.
+            if key == 'name' and section in ('circuits', 'reserveCircuits') and 'officialName' in cur:
+                target = 'officialName'
+            if cur.get(target) != nval:
+                out.append(Change(category, section, _label(cur), target, cur.get(target), nval, UPDATE))
     for eid, cur in old_by_id.items():
         if eid not in new_ids:
             out.append(Change(category, section, _label(cur), '', None, None, NOT_IN_MOD,

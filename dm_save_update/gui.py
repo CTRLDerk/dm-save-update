@@ -11,6 +11,7 @@ ACTION_TAGS = {
     core.UPDATE: 'update',
     core.KEEP_ERA: 'keep',
     core.KEEP_MAJOR: 'keep',
+    core.KEEP_GAME: 'keep',
     core.NOT_ADDED: 'skip',
     core.NOT_IN_MOD: 'skip',
 }
