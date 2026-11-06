@@ -1,5 +1,6 @@
 """Window: pick the save folder and the Workshop folder, choose a mod and a save, preview the update."""
 import os
+import queue
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -162,9 +163,19 @@ class App(tk.Tk):
                 result = (changes, notes, (mod_entry['label'], save_entry['label']), None)
             except Exception as exc:  # shown to the user, the window stays usable
                 result = ([], [], ('', ''), exc)
-            self.after(0, lambda: self.show_result(*result))
+            box.put(result)  # Tk may only be used from the main thread
 
+        def poll():
+            try:
+                result = box.get_nowait()
+            except queue.Empty:
+                self.after(100, poll)
+                return
+            self.show_result(*result)
+
+        box = queue.Queue()
         threading.Thread(target=work, daemon=True).start()
+        self.after(100, poll)
 
     def show_result(self, changes, notes, label, error):
         self.config(cursor='')
