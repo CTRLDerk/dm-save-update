@@ -58,8 +58,8 @@ class App(tk.Tk):
         ttk.Label(picks, text='Save').grid(row=1, column=0, sticky='w')
         self.save_box = ttk.Combobox(picks, state='readonly')
         self.save_box.grid(row=1, column=1, sticky='ew', padx=6)
-        self.mod_box.bind('<<ComboboxSelected>>', lambda e: self._remember('mod'))
-        self.save_box.bind('<<ComboboxSelected>>', lambda e: self._remember('save'))
+        self.mod_box.bind('<<ComboboxSelected>>', lambda e: self._remember_choice('mod'))
+        self.save_box.bind('<<ComboboxSelected>>', lambda e: self._remember_choice('save'))
         picks.columnconfigure(1, weight=1)
 
         opts = ttk.Frame(self)
@@ -116,26 +116,26 @@ class App(tk.Tk):
             where = '/'.join(path.replace('\\', '/').split('/')[-2:])
             self.extra_mods = [m for m in self.extra_mods if m['path'] != path]
             self.extra_mods.insert(0, {'path': path, 'item': '', 'label': '%s  (file %s)' % (name, where)})
-            self._fill_mods(select=0)
+            self._fill_mod_list(select=0)
 
-    def _fill_mods(self, select=0):
+    def _fill_mod_list(self, select=0):
         self.mods = self.extra_mods + steam.list_workshop_mods(self.workshop_dir.get())
         self.mod_box['values'] = [m['label'] for m in self.mods]
-        self._select('mod', self.mod_box, select if self.mods else -1)
+        self._select_entry('mod', self.mod_box, select if self.mods else -1)
 
-    def _select(self, which, box, index):
+    def _select_entry(self, which, box, index):
         self.sel[which] = index
         if index >= 0:
             box.current(index)
         else:
             box.set('')
 
-    def _remember(self, which):
+    def _remember_choice(self, which):
         box, items = (self.mod_box, self.mods) if which == 'mod' else (self.save_box, self.saves)
-        self.sel[which] = self._index(box, items, self.sel[which])
+        self.sel[which] = self._entry_index(box, items, self.sel[which])
 
     @staticmethod
-    def _index(box, items, fallback):
+    def _entry_index(box, items, fallback):
         text = box.get()
         for i, item in enumerate(items):
             if item['label'] == text:
@@ -146,11 +146,11 @@ class App(tk.Tk):
     def refresh_lists(self):
         self.saves = steam.list_saves(self.saves_dir.get())
         self.save_box['values'] = [s['label'] for s in self.saves]
-        self._select('save', self.save_box, 0 if self.saves else -1)
-        self._fill_mods(select=0)
+        self._select_entry('save', self.save_box, 0 if self.saves else -1)
+        self._fill_mod_list(select=0)
         self.status.set('%d saves, %d mods found.' % (len(self.saves), len(self.mods)))
 
-    def _background(self, work, done):
+    def _run_in_thread(self, work, done):
         """Run work() in a thread and done(result) in the window; Tk may only be used from the main thread."""
         box = queue.Queue()
 
@@ -173,23 +173,23 @@ class App(tk.Tk):
         threading.Thread(target=run, daemon=True).start()
         self.after(100, poll)
 
-    def _choice(self):
-        mi = self._index(self.mod_box, self.mods, self.sel['mod'])
-        si = self._index(self.save_box, self.saves, self.sel['save'])
+    def _chosen_entries(self):
+        mi = self._entry_index(self.mod_box, self.mods, self.sel['mod'])
+        si = self._entry_index(self.save_box, self.saves, self.sel['save'])
         if not (0 <= mi < len(self.mods)) or not (0 <= si < len(self.saves)):
             messagebox.showinfo('DM Save Update', 'Choose a mod and a save first.')
             return None
         return self.mods[mi], self.saves[si]
 
-    def _options(self):
+    def _compare_options(self):
         return core.Options(self.overwrite_era.get(), self.overwrite_major.get())
 
     def run_compare(self, after_apply=None):
-        choice = self._choice()
+        choice = self._chosen_entries()
         if not choice:
             return
         mod_entry, save_entry = choice
-        opts = self._options()
+        opts = self._compare_options()
         self.preview = None
         self.apply_btn.config(state='disabled')
         self.status.set('Reading the mod and the save…')
@@ -220,10 +220,10 @@ class App(tk.Tk):
                                 'options': (opts.overwrite_era, opts.overwrite_major), 'updates': updates}
                 self.apply_btn.config(state='normal')
 
-        self._background(work, done)
+        self._run_in_thread(work, done)
 
     def show_result(self, changes, notes, label):
-        self.changes, self.notes, self.label = changes, notes, label
+        self.changes, self.notes, self.result_labels = changes, notes, label
         self.note_box.delete('1.0', 'end')
         self.note_box.insert('end', '\n'.join(notes) or 'No notes.')
         self.fill_tree()
@@ -235,8 +235,8 @@ class App(tk.Tk):
         pv = self.preview
         if not pv:
             return
-        choice = self._choice()
-        opts = self._options()
+        choice = self._chosen_entries()
+        opts = self._compare_options()
         if (not choice or choice[0] is not pv['mod_entry'] or choice[1] is not pv['save_entry']
                 or (opts.overwrite_era, opts.overwrite_major) != pv['options']):
             messagebox.showinfo('DM Save Update', 'The choice changed after the preview. Press "Show changes" again.')
@@ -265,10 +265,10 @@ class App(tk.Tk):
             messagebox.showinfo('DM Save Update', msg)
             self.run_compare(after_apply=msg)  # the preview now shows what is left (should be no updates)
 
-        self._background(work, done)
+        self._run_in_thread(work, done)
 
     def open_restore(self):
-        choice = self._choice()
+        choice = self._chosen_entries()
         if not choice:
             return
         save_entry = choice[1]
@@ -326,7 +326,7 @@ class App(tk.Tk):
         path = filedialog.asksaveasfilename(defaultextension='.txt', initialfile='dm-save-update-report.txt',
                                             filetypes=[('Text', '*.txt')])
         if path:
-            mod_label, save_label = self.label
+            mod_label, save_label = self.result_labels
             with open(path, 'w', encoding='utf-8') as fh:
                 fh.write(core.report_text(self.changes, self.notes, mod_label, save_label))
             self.status.set('Report saved: %s' % path)
