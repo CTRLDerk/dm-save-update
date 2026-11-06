@@ -20,13 +20,15 @@ jobs:
           python-version: '3.12'
       - name: Tests
         run: python -m unittest discover -s tests -v
-      - name: Window module loads
-        run: python -c "import dm_save_update.gui"
+      - name: Release text can be made for this version
+        run: python tools/release_notes.py "v$(python -c 'import dm_save_update as d; print(d.__version__)')" --out release-check.md
+      - name: Window check (lists, selection, preview)
+        run: python -m tests.gui_check
       - name: Build exe
         run: |
           python -m pip install --upgrade pip pyinstaller
           pyinstaller --onefile --windowed --name DM-Save-Update update.py
-      - name: Smoke test of the exe (preview of a test save)
+      - name: Smoke test of the exe (preview, apply, backup)
         shell: pwsh
         run: |
           python -c "from tests.test_core import make_mod, write_save; import json; json.dump(make_mod(), open('smoke_mod.json','w')); write_save('smoke/solo/slot_1')"
@@ -34,13 +36,30 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "exe exit code $($p.ExitCode)" }
           Get-Content smoke_report.txt
           if (-not (Select-String -Path smoke_report.txt -Pattern 'globalPerformance' -Quiet)) { throw 'report incomplete' }
+          $p = Start-Process -FilePath dist\DM-Save-Update.exe -ArgumentList '--mod','smoke_mod.json','--save','smoke\solo\slot_1','--apply','--report','smoke_apply.txt' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "exe --apply exit code $($p.ExitCode)" }
+          Get-Content smoke_apply.txt
+          if (-not (Select-String -Path smoke_apply.txt -Pattern '^Applied [1-9]' -Quiet)) { throw 'nothing applied' }
+          if (Select-String -Path smoke_apply.txt -Pattern '\[update\]' -Quiet) { throw 'updates left after apply' }
+          if (-not (Get-ChildItem smoke\solo\slot_1 -Directory -Filter '_dmsu_backup_*')) { throw 'no backup folder' }
       - uses: actions/upload-artifact@v4
         with:
           name: DM-Save-Update-exe
           path: dist/DM-Save-Update.exe
+      - name: Release text (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash dist\DM-Save-Update.exe -Algorithm SHA256).Hash
+          "$hash  DM-Save-Update.exe" | Out-File -Encoding ascii dist\DM-Save-Update.exe.sha256
+          python tools/release_notes.py "${{ github.ref_name }}" --sha256 $hash --out release-body.md
+          Get-Content release-body.md
       - name: Release (tags only)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/DM-Save-Update.exe
-          generate_release_notes: true
+          name: DM Save Update ${{ github.ref_name }}
+          body_path: release-body.md
+          files: |
+            dist/DM-Save-Update.exe
+            dist/DM-Save-Update.exe.sha256

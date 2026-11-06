@@ -2,20 +2,30 @@
 
 Bring a running Delta Manager career up to date with the newest version of a mod, without losing your progress.
 
-When a mod author updates a mod on the Steam Workshop, careers that were already started keep the old settings: the game copies the mod into the save when the career starts. This tool compares the new mod with your save and shows exactly which settings would change.
-
-> **Version 0.1 is a preview.** It only reads. Nothing is written to your save yet. Applying the update (with an automatic backup) comes in the next version, after the preview has been checked on real saves.
+When a mod author updates a mod on the Steam Workshop, careers that were already started keep the old settings: the game copies the mod into the save when the career starts. This tool compares the new mod with your save, shows exactly which settings would change, and writes them into the save when you press **Apply update**. A backup is made first.
 
 ## Download and start
 
 1. Download `DM-Save-Update.exe` from the [Releases](../../releases) page.
-2. Double-click it. Windows SmartScreen may warn because the program is not signed: choose *More info → Run anyway*.
+2. **Chrome or Edge blocks the download?** Open the downloads list (`Ctrl+J`) and choose **Keep**. Double-click the exe; if **Windows protected your PC** appears, click **More info → Run anyway**. The program is new and not signed, so browsers and Windows do not know it yet. The SHA-256 of the exe is listed with every release.
 3. The tool looks for your Steam libraries and fills in both folders by itself:
    - **Save folder:** `...\steamapps\common\Delta Manager\sauvegardes`
    - **Workshop folder:** `...\steamapps\workshop\content\4247780` (Workshop mods are stored here, not in the game's `resources\mods` folder)
 
    If a folder is not found, press **Browse…** and point to it.
-4. Choose the **mod** (new version) and the **save**, and press **Show changes**.
+4. Choose the **mod** (new version) and the **save**, and press **Show changes**. Nothing is written yet.
+5. Close Delta Manager, or go back to its main menu, so the game does not overwrite the save afterwards.
+6. Press **Apply update** and confirm. The list is refreshed and should show no updates left.
+7. Start the game and load the save.
+
+## Backup and restore
+
+Before writing, the tool copies `config.json`, `season.json` and `meta.json` to a folder inside the save:
+`...\sauvegardes\solo\slot_N\_dmsu_backup_<date>_<time>\`. Only `config.json` and `season.json` are written; every other file of the save (drivers, teams, career, history) is never opened for writing.
+
+**Restore backup…** lists these backups and puts one back. The files from before the restore are backed up as well, so a restore can be undone too.
+
+The update is refused when the save was written after the preview (for example because the game saved it): press **Show changes** again.
 
 Running from source instead: Python 3.8 or newer, then `python update.py`.
 
@@ -29,6 +39,7 @@ Running from source instead: Python 3.8 or newer, then `python update.py`.
 | New circuits or sponsors | listed, not added | adding them would change the calendar or sponsor market of a running career |
 | Drivers, teams, staff, contracts, results, standings, history | **never** | that is your career |
 | The active regulation of the current season | **never** | the game keeps it separately; changed regulation values count from the next regulation change |
+| Fields the game sets itself at career start (`regulations.baseLimits`, a circuit's `name`) | **never** | the mod's circuit name is compared with the save's `officialName` |
 
 ### Settings the career itself changed
 
@@ -43,14 +54,18 @@ A save from another mod is recognised: if none of the mod's categories are in th
 
 ```
 DM-Save-Update.exe --mod <mod.json> --save <...\sauvegardes\solo\slot_1> --report report.txt
-python update.py   --mod <mod.json> --save <...\sauvegardes\solo\slot_1> [--overwrite-era] [--overwrite-major]
+python update.py   --mod <mod.json> --save <...\sauvegardes\solo\slot_1> [--overwrite-era] [--overwrite-major] [--apply]
+python update.py   --save <...\slot_1> --list-backups
+python update.py   --save <...\slot_1> --restore <...\slot_1\_dmsu_backup_...>
 ```
+
+Without `--apply` nothing is written.
 
 The exe has no console window, so use `--report` with it.
 
 ## For mod authors
 
-Ask players to run the preview after an update and to send the report (*Save report…*) if something looks wrong. A local slot file (`resources\mods\slot_N.json`) can be compared too: *Other mod file…*.
+Ask players to run **Show changes** after an update and to send the report (*Save report…*) if something looks wrong. A local slot file (`resources\mods\slot_N.json`) can be compared too: *Other mod file…*.
 
 ## Development
 
@@ -58,6 +73,8 @@ Ask players to run the preview after an update and to send the report (*Save rep
 python -m unittest discover -s tests -v
 ```
 
-Every push builds the Windows exe on GitHub Actions (artifact `DM-Save-Update-exe`). A tag `vX.Y.Z` publishes it as a Release.
+Every push builds the Windows exe on GitHub Actions (artifact `DM-Save-Update-exe`).
+
+**Release:** set `__version__` in `dm_save_update/__init__.py`, add a `## X.Y.Z` section to `CHANGELOG.md`, merge to `main`, then push a tag `vX.Y.Z`. The workflow builds the exe, writes the release text (`tools/release_notes.py`: install notes from `.github/release-install.md` + the changelog section + SHA-256) and publishes the Release with the exe and its `.sha256` file. It refuses a tag that does not match `__version__`.
 
 License: MIT.
