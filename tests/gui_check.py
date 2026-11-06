@@ -26,9 +26,18 @@ def main():
     with open(extra, 'w', encoding='utf-8') as fh:
         json.dump(make_mod(), fh)
 
+    shown = []
+
     def fail(*args, **kw):
         raise AssertionError('dialog shown: %r' % (args,))
-    gui.messagebox.showinfo = gui.messagebox.showerror = fail
+
+    def info(title, msg, **kw):
+        if 'Choose a mod' in msg or 'choice changed' in msg:
+            fail(msg)
+        shown.append(msg)
+    gui.messagebox.showerror = fail
+    gui.messagebox.showinfo = info
+    gui.messagebox.askyesno = lambda *a, **kw: True
 
     app = gui.App()
     app.withdraw()
@@ -57,6 +66,23 @@ def main():
         assert app.status.get().startswith('Preview'), app.status.get()
         assert app.changes, 'no changes found'
         print('mod %d: %s' % (idx, app.status.get()))
+
+    # Apply the last preview, then the preview must show no updates and a backup must exist.
+    assert str(app.apply_btn['state']) == 'normal'
+    app.status.set('')
+    app.run_apply()
+    deadline = time.time() + 20
+    while not (app.status.get().startswith('Preview') and app.notes and app.notes[0].startswith('Applied')) \
+            and time.time() < deadline:
+        app.update()
+        time.sleep(0.05)
+    assert app.notes and app.notes[0].startswith('Applied'), (app.status.get(), app.notes[:1])
+    left = [c for c in app.changes if c.action == 'update']
+    assert not left, [(c.category, c.path) for c in left]
+    assert str(app.apply_btn['state']) == 'disabled'
+    slot = os.path.join(saves, 'solo', 'slot_1')
+    assert any(n.startswith('_dmsu_backup_') for n in os.listdir(slot)), os.listdir(slot)
+    print('apply: %s' % app.notes[0])
     app.destroy()
     print('window check ok')
     return 0

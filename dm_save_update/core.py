@@ -10,6 +10,7 @@ What counts as a mod setting and is compared:
 What is never touched: drivers, teams, staff, contracts, results, standings, history,
 the active regulation (config.currentRegulation) and everything else that is career progress.
 """
+import copy
 import json
 import os
 import re
@@ -116,10 +117,18 @@ def mod_name(mod, fallback=''):
 class Save:
     """A career save folder (sauvegardes/<mode>/slot_N)."""
 
+    FILES = ('config.json', 'season.json')  # the only files an update writes
+
     def __init__(self, folder):
         self.folder = folder
-        self.config = load_json(os.path.join(folder, 'config.json'))
-        self.season = load_json(os.path.join(folder, 'season.json'))
+        self.raw, self.mtime = {}, {}
+        for name in self.FILES:
+            path = os.path.join(folder, name)
+            with open(path, encoding='utf-8', newline='') as fh:
+                self.raw[name] = fh.read()
+            self.mtime[name] = os.path.getmtime(path)
+        self.config = json.loads(self.raw['config.json'])
+        self.season = json.loads(self.raw['season.json'])
         meta_path = os.path.join(folder, 'meta.json')
         self.meta = load_json(meta_path) if os.path.exists(meta_path) else {}
 
@@ -265,8 +274,12 @@ class Options:
         self.overwrite_major = overwrite_major
 
 
-def compare(mod, save, options=None):
-    """All differences between the mod and the save, with the action an update would take."""
+def compare(mod, save, options=None, apply=False):
+    """All differences between the mod and the save, with the action an update would take.
+
+    With apply=True the updates are also made in save.config / save.season (in memory);
+    Save.write() puts them on disk.
+    """
     options = options or Options()
     changes, notes = [], []
     pairs, unmatched_save = match_categories(mod_categories(mod), save.categories())
@@ -291,17 +304,17 @@ def compare(mod, save, options=None):
             protect.update({k: KEEP_ERA for k in era_keys})
         if major and not options.overwrite_major:
             protect.update({k: KEEP_MAJOR for k in MAJOR_KEYS})
-        _diff_dict(sc['general'], mc['general'], [], cname, protect, changes)
+        _diff_dict(sc['general'], mc['general'], [], cname, protect, changes, apply=apply)
         for section in ('circuits', 'reserveCircuits'):
-            _diff_list_by_id(sc[section], mc[section], cname, section, CIRCUIT_KEEP, changes)
-        _diff_list_by_id(sc['sponsors'], mc['sponsors'], cname, 'sponsors', {'id'}, changes)
-        _diff_list_by_id(sc['namingSponsors'], mc['namingSponsors'], cname, 'namingSponsors', {'id'}, changes)
+            _diff_list_by_id(sc[section], mc[section], cname, section, CIRCUIT_KEEP, changes, apply)
+        _diff_list_by_id(sc['sponsors'], mc['sponsors'], cname, 'sponsors', {'id'}, changes, apply)
+        _diff_list_by_id(sc['namingSponsors'], mc['namingSponsors'], cname, 'namingSponsors', {'id'}, changes, apply)
     for c in unmatched_save:
         notes.append('Category "%s" in the save is not in the mod. It is left as it is.' % c['name'])
     return changes, notes
 
 
-def _diff_dict(old, new, path, category, protect, out, protected_by=None):
+def _diff_dict(old, new, path, category, protect, out, protected_by=None, apply=False):
     for key, nval in new.items():
         if key in META_KEYS:
             continue
@@ -310,19 +323,23 @@ def _diff_dict(old, new, path, category, protect, out, protected_by=None):
         if key not in old:
             out.append(Change(category, 'settings', '', '.'.join(sub), None, nval, action or UPDATE,
                               _note_for(sub, action)))
+            if apply and not action:
+                old[key] = copy.deepcopy(nval)
             continue
         oval = old[key]
         if isinstance(oval, dict) and isinstance(nval, dict):
-            _diff_dict(oval, nval, sub, category, protect, out, action)
+            _diff_dict(oval, nval, sub, category, protect, out, action, apply)
         elif _same_shape_dict_lists(oval, nval):
             # Lists like dryTyres or concepts: show the field that differs, e.g. dryTyres[General].durability
             for i, (o, n) in enumerate(zip(oval, nval)):
                 tag = n.get('displayName') or n.get('name') or n.get('id') or i
                 elem = sub[:-1] + ['%s[%s]' % (key, tag)]
-                _diff_dict(o, n, elem, category, protect, out, action or protect.get(key))
+                _diff_dict(o, n, elem, category, protect, out, action or protect.get(key), apply)
         elif oval != nval:
             out.append(Change(category, 'settings', '', '.'.join(sub), oval, nval, action or UPDATE,
                               _note_for(sub, action)))
+            if apply and not action:
+                old[key] = copy.deepcopy(nval)
 
 
 def _same_shape_dict_lists(a, b):
@@ -342,7 +359,7 @@ def _label(entity):
     return '%s (%s)' % (entity.get('name') or entity.get('officialName') or '?', entity.get('id'))
 
 
-def _diff_list_by_id(old_list, new_list, category, section, keep, out):
+def _diff_list_by_id(old_list, new_list, category, section, keep, out, apply=False):
     old_by_id = {e.get('id'): e for e in old_list if isinstance(e, dict)}
     new_ids = set()
     for ent in new_list:
@@ -364,6 +381,8 @@ def _diff_list_by_id(old_list, new_list, category, section, keep, out):
                 target = 'officialName'
             if cur.get(target) != nval:
                 out.append(Change(category, section, _label(cur), target, cur.get(target), nval, UPDATE))
+                if apply:
+                    cur[target] = copy.deepcopy(nval)
     for eid, cur in old_by_id.items():
         if eid not in new_ids:
             out.append(Change(category, section, _label(cur), '', None, None, NOT_IN_MOD,
@@ -388,7 +407,7 @@ def summary(changes):
 
 
 def report_text(changes, notes, mod_label, save_label):
-    lines = ['DM Save Update - preview (nothing has been written)',
+    lines = ['DM Save Update - preview',
              'Mod:  %s' % mod_label, 'Save: %s' % save_label, '']
     counts = summary(changes)
     lines.append('Summary: ' + (', '.join('%s %d' % (k, v) for k, v in sorted(counts.items())) or 'no differences'))

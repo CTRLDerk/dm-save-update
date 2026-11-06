@@ -2,9 +2,7 @@
 
 Bring a running Delta Manager career up to date with the newest version of a mod, without losing your progress.
 
-When a mod author updates a mod on the Steam Workshop, careers that were already started keep the old settings: the game copies the mod into the save when the career starts. This tool compares the new mod with your save and shows exactly which settings would change.
-
-> **Version 0.1 is a preview.** It only reads. Nothing is written to your save yet. Applying the update (with an automatic backup) comes in the next version, after the preview has been checked on real saves.
+When a mod author updates a mod on the Steam Workshop, careers that were already started keep the old settings: the game copies the mod into the save when the career starts. This tool compares the new mod with your save, shows exactly which settings would change, and writes them into the save when you press **Apply update**. A backup is made first.
 
 ## Download and start
 
@@ -15,7 +13,19 @@ When a mod author updates a mod on the Steam Workshop, careers that were already
    - **Workshop folder:** `...\steamapps\workshop\content\4247780` (Workshop mods are stored here, not in the game's `resources\mods` folder)
 
    If a folder is not found, press **Browse…** and point to it.
-4. Choose the **mod** (new version) and the **save**, and press **Show changes**.
+4. Choose the **mod** (new version) and the **save**, and press **Show changes**. Nothing is written yet.
+5. Close Delta Manager, or go back to its main menu, so the game does not overwrite the save afterwards.
+6. Press **Apply update** and confirm. The list is refreshed and should show no updates left.
+7. Start the game and load the save.
+
+## Backup and restore
+
+Before writing, the tool copies `config.json`, `season.json` and `meta.json` to a folder inside the save:
+`...\sauvegardes\solo\slot_N\_dmsu_backup_<date>_<time>\`. Only `config.json` and `season.json` are written; every other file of the save (drivers, teams, career, history) is never opened for writing.
+
+**Restore backup…** lists these backups and puts one back. The files from before the restore are backed up as well, so a restore can be undone too.
+
+The update is refused when the save was written after the preview (for example because the game saved it): press **Show changes** again.
 
 Running from source instead: Python 3.8 or newer, then `python update.py`.
 
@@ -29,6 +39,7 @@ Running from source instead: Python 3.8 or newer, then `python update.py`.
 | New circuits or sponsors | listed, not added | adding them would change the calendar or sponsor market of a running career |
 | Drivers, teams, staff, contracts, results, standings, history | **never** | that is your career |
 | The active regulation of the current season | **never** | the game keeps it separately; changed regulation values count from the next regulation change |
+| Fields the game sets itself at career start (`regulations.baseLimits`, a circuit's `name`) | **never** | the mod's circuit name is compared with the save's `officialName` |
 
 ### Settings the career itself changed
 
@@ -43,14 +54,18 @@ A save from another mod is recognised: if none of the mod's categories are in th
 
 ```
 DM-Save-Update.exe --mod <mod.json> --save <...\sauvegardes\solo\slot_1> --report report.txt
-python update.py   --mod <mod.json> --save <...\sauvegardes\solo\slot_1> [--overwrite-era] [--overwrite-major]
+python update.py   --mod <mod.json> --save <...\sauvegardes\solo\slot_1> [--overwrite-era] [--overwrite-major] [--apply]
+python update.py   --save <...\slot_1> --list-backups
+python update.py   --save <...\slot_1> --restore <...\slot_1\_dmsu_backup_...>
 ```
+
+Without `--apply` nothing is written.
 
 The exe has no console window, so use `--report` with it.
 
 ## For mod authors
 
-Ask players to run the preview after an update and to send the report (*Save report…*) if something looks wrong. A local slot file (`resources\mods\slot_N.json`) can be compared too: *Other mod file…*.
+Ask players to run **Show changes** after an update and to send the report (*Save report…*) if something looks wrong. A local slot file (`resources\mods\slot_N.json`) can be compared too: *Other mod file…*.
 
 ## Development
 
