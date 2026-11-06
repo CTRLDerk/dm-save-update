@@ -309,9 +309,20 @@ def _diff_dict(old, new, path, category, protect, out, protected_by=None):
         oval = old[key]
         if isinstance(oval, dict) and isinstance(nval, dict):
             _diff_dict(oval, nval, sub, category, protect, out, action)
+        elif _same_shape_dict_lists(oval, nval):
+            # Lists like dryTyres or concepts: show the field that differs, e.g. dryTyres[General].durability
+            for i, (o, n) in enumerate(zip(oval, nval)):
+                tag = n.get('displayName') or n.get('name') or n.get('id') or i
+                elem = sub[:-1] + ['%s[%s]' % (key, tag)]
+                _diff_dict(o, n, elem, category, protect, out, action or protect.get(key))
         elif oval != nval:
             out.append(Change(category, 'settings', '', '.'.join(sub), oval, nval, action or UPDATE,
                               _note_for(sub, action)))
+
+
+def _same_shape_dict_lists(a, b):
+    return (isinstance(a, list) and isinstance(b, list) and len(a) == len(b) and a
+            and all(isinstance(x, dict) for x in a) and all(isinstance(x, dict) for x in b))
 
 
 def _note_for(path, action):

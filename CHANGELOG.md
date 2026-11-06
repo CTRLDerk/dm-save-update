@@ -7,6 +7,7 @@
 - Keeps the save value for rules adopted by era votes and for values drawn at a major regulation; both can be overwritten with a tick box.
 - New circuits and sponsors are listed but not added.
 - Saves of another mod are recognised (no category in common).
+- Lists such as tyres and concepts show the field that differs (`dryTyres[General].durability`).
 - Report as text file; command line with `--report`.
 - Reads only. Nothing is written to the save.
 - Windows exe built by GitHub Actions (PyInstaller), with a smoke test of the exe.

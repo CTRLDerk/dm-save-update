@@ -88,6 +88,16 @@ class CompareTest(unittest.TestCase):
         self.assertTrue(by(cup, item='Track 3 (3)', action=core.NOT_ADDED))
         self.assertTrue(by(cup, item='Track 2 (2)', action=core.NOT_IN_MOD))
 
+    def test_list_of_dicts_shows_the_field(self):
+        mod = make_mod()
+        mod['additionalCategories'][0]['data']['general']['gameplay']['raceRules']['dryTyres'] = [
+            {'name': 'General', 'durability': 25, 'speed': 50}]
+        save = write_save(self.dir)
+        save.config['generalData']['gameplay']['raceRules']['dryTyres'] = [{'name': 'General', 'durability': 38, 'speed': 50}]
+        changes, _ = core.compare(mod, save)
+        self.assertTrue(by(changes, category='Truck', path='gameplay.raceRules.dryTyres[General].durability',
+                           old=38, new=25))
+
     def test_sponsor_values(self):
         changes, _ = core.compare(make_mod(), write_save(self.dir))
         self.assertTrue(by(changes, section='sponsors', path='baseAmount', old=1.0, new=2.0))
