@@ -7,7 +7,7 @@ When a mod author updates a mod on the Steam Workshop, careers that were already
 ## Download and start
 
 1. Download `DM-Save-Update.exe` from the [Releases](../../releases) page.
-2. Double-click it. Windows SmartScreen may warn because the program is not signed: choose *More info → Run anyway*.
+2. **Chrome or Edge blocks the download?** Open the downloads list (`Ctrl+J`) and choose **Keep**. Double-click the exe; if **Windows protected your PC** appears, click **More info → Run anyway**. The program is new and not signed, so browsers and Windows do not know it yet. The SHA-256 of the exe is listed with every release.
 3. The tool looks for your Steam libraries and fills in both folders by itself:
    - **Save folder:** `...\steamapps\common\Delta Manager\sauvegardes`
    - **Workshop folder:** `...\steamapps\workshop\content\4247780` (Workshop mods are stored here, not in the game's `resources\mods` folder)
@@ -73,6 +73,8 @@ Ask players to run **Show changes** after an update and to send the report (*Sav
 python -m unittest discover -s tests -v
 ```
 
-Every push builds the Windows exe on GitHub Actions (artifact `DM-Save-Update-exe`). A tag `vX.Y.Z` publishes it as a Release.
+Every push builds the Windows exe on GitHub Actions (artifact `DM-Save-Update-exe`).
+
+**Release:** set `__version__` in `dm_save_update/__init__.py`, add a `## X.Y.Z` section to `CHANGELOG.md`, merge to `main`, then push a tag `vX.Y.Z`. The workflow builds the exe, writes the release text (`tools/release_notes.py`: install notes from `.github/release-install.md` + the changelog section + SHA-256) and publishes the Release with the exe and its `.sha256` file. It refuses a tag that does not match `__version__`.
 
 License: MIT.
