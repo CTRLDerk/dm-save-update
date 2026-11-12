@@ -30,6 +30,9 @@ P = {
 }
 FONT_FILES = ('Barlow-Regular.ttf', 'Barlow-SemiBold.ttf', 'BarlowCondensed-Bold.ttf',
               'BarlowCondensed-ExtraBoldItalic.ttf')
+ALL = 'All'
+ACTION_FILTERS = (ALL, 'Update', 'Kept', 'Skipped')
+FILTER_TAGS = {'Update': 'update', 'Kept': 'keep', 'Skipped': 'skip'}
 MODE_NAMES = {'solo': 'SOLO', 'coop': 'CO-OP', 'multi': 'CO-OP', 'spectator': 'SPECTATOR', '': 'SAVES'}
 
 
@@ -114,7 +117,12 @@ class App(tk.Tk):
         self.workshop_dir = tk.StringVar(value=steam.find_workshop_dir())
         self.overwrite_era = tk.BooleanVar(value=False)
         self.overwrite_major = tk.BooleanVar(value=False)
-        self.show_kept = tk.BooleanVar(value=True)
+        self.filter_text = tk.StringVar()
+        self.filter_cat = tk.StringVar(value=ALL)
+        self.filter_sec = tk.StringVar(value=ALL)
+        self.filter_action = tk.StringVar(value=ALL)
+        self.shown = tk.StringVar()
+        self._filter_job = None
         self.status = tk.StringVar()
         self._fonts()
         self._style()
@@ -329,12 +337,11 @@ class App(tk.Tk):
         self._sec(head, 'Changes').pack(side='left')
         legend = tk.Frame(head, bg=P['pit'])
         legend.pack(side='right')
-        ttk.Checkbutton(legend, text='Show kept and skipped', variable=self.show_kept,
-                        command=self.fill_tree).pack(side='left', padx=(0, 6))
         for text, colour in (('UPDATE', 'chrome'), ('KEPT', 'gold'), ('SKIPPED', 'faint')):
             tk.Frame(legend, bg=P[colour], width=10, height=10).pack(side='left', padx=(12, 5))
             self._label(legend, text, 'cap', 'muted').pack(side='left')
         cols = ('category', 'section', 'item', 'field', 'save', 'mod', 'action')
+        self._build_filters(table)
         frame = tk.Frame(table, bg=P['pit'])
         frame.pack(fill='both', expand=True)
         self.tree = ttk.Treeview(frame, columns=cols, show='headings')
@@ -361,6 +368,49 @@ class App(tk.Tk):
                     wraplength=520, justify='left').pack(side='left', padx=8)
         self._label(main, textvariable=self.status, font='small', fg='faint', bg='asphalt', anchor='w').pack(
             fill='x', pady=(8, 0))
+
+    def _build_filters(self, table):
+        """Filter row above the table: free text over all columns, category, section and action."""
+        row = tk.Frame(table, bg=P['pit'])
+        row.pack(fill='x', pady=(0, 8))
+        self._label(row, 'FILTER', 'cap', 'muted').pack(side='left', padx=(0, 6))
+        entry = tk.Entry(row, textvariable=self.filter_text, width=24, font=self.f['small'], bg=P['asphalt'],
+                         fg=P['chrome'], insertbackground=P['chrome'], relief='flat', highlightthickness=1,
+                         highlightbackground=P['line'], highlightcolor=P['gold'])
+        entry.pack(side='left', ipady=5)
+        entry.bind('<Escape>', lambda e: self.filter_text.set(''))
+        self.filter_boxes = {}
+        for caption, var, width in (('CATEGORY', self.filter_cat, 22), ('SECTION', self.filter_sec, 14),
+                                    ('ACTION', self.filter_action, 10)):
+            self._label(row, caption, 'cap', 'muted').pack(side='left', padx=(14, 6))
+            box = ttk.Combobox(row, textvariable=var, state='readonly', width=width, font=self.f['small'],
+                               values=ACTION_FILTERS if var is self.filter_action else (ALL,))
+            box.pack(side='left')
+            box.bind('<<ComboboxSelected>>', lambda e: self.fill_tree())
+            self.filter_boxes[caption] = box
+        ttk.Button(row, text='CLEAR', style='Out.TButton', command=self.clear_filters).pack(side='left', padx=(10, 0))
+        self._label(row, textvariable=self.shown, font='small', fg='muted', anchor='e').pack(side='right')
+        self.filter_text.trace_add('write', lambda *a: self._filter_later())
+
+    def _filter_later(self):
+        """Refill the table shortly after typing stops (hundreds of rows)."""
+        if self._filter_job:
+            self.after_cancel(self._filter_job)
+        self._filter_job = self.after(200, self.fill_tree)
+
+    def clear_filters(self):
+        for var in (self.filter_cat, self.filter_sec, self.filter_action):
+            var.set(ALL)
+        self.filter_text.set('')
+        self.fill_tree()
+
+    def _filter_choices(self):
+        """Category and section lists from the current result; a choice that no longer exists falls back to All."""
+        for caption, var, attr in (('CATEGORY', self.filter_cat, 'category'), ('SECTION', self.filter_sec, 'section')):
+            values = [ALL] + sorted({str(getattr(c, attr)) for c in self.changes if getattr(c, attr)})
+            self.filter_boxes[caption]['values'] = values
+            if var.get() not in values:
+                var.set(ALL)
 
     # ------------------------------------------------------------- save list and hero
     def _fill_save_list(self):
@@ -593,6 +643,7 @@ class App(tk.Tk):
         self.changes, self.notes, self.result_labels = changes, notes, label
         self.note_box.delete('1.0', 'end')
         self.note_box.insert('end', '\n'.join(notes) or 'No notes.')
+        self._filter_choices()
         self.fill_tree()
         self.counts = {'update': 0, 'keep': 0, 'skip': 0}
         for c in changes:
@@ -687,18 +738,32 @@ class App(tk.Tk):
         ttk.Button(btns, text='RESTORE', style='Pri.TButton', command=do_restore).pack(side='right')
         ttk.Button(btns, text='CANCEL', style='Out.TButton', command=win.destroy).pack(side='right', padx=8)
 
-    def fill_tree(self):
-        self.tree.delete(*self.tree.get_children())
-        n = 0
+    def visible_changes(self):
+        """The changes that pass the filters, with their row values."""
+        text = self.filter_text.get().strip().lower()
+        cat, sec = self.filter_cat.get(), self.filter_sec.get()
+        want = FILTER_TAGS.get(self.filter_action.get())
+        out = []
         for c in self.changes:
             tag = ACTION_TAGS.get(c.action, 'update')
-            if tag != 'update' and not self.show_kept.get():
+            if want and tag != want:
                 continue
-            tags = (tag, 'odd') if n % 2 else (tag,)
-            n += 1
-            self.tree.insert('', 'end', tags=tags, values=(
-                c.category, c.section, c.item, c.path, core.short(c.old, 60), core.short(c.new, 60),
-                c.action + (' *' if c.note else '')))
+            if cat != ALL and str(c.category) != cat or sec != ALL and str(c.section) != sec:
+                continue
+            values = (c.category, c.section, c.item, c.path, core.short(c.old, 60), core.short(c.new, 60),
+                      c.action + (' *' if c.note else ''))
+            if text and text not in ' '.join(str(v) for v in values).lower():
+                continue
+            out.append((tag, values))
+        return out
+
+    def fill_tree(self):
+        self._filter_job = None
+        self.tree.delete(*self.tree.get_children())
+        rows = self.visible_changes()
+        for n, (tag, values) in enumerate(rows):
+            self.tree.insert('', 'end', tags=(tag, 'odd') if n % 2 else (tag,), values=values)
+        self.shown.set('%d of %d shown' % (len(rows), len(self.changes)) if self.changes else '')
 
     def save_report(self):
         if not self.changes and not self.notes:

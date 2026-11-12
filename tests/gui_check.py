@@ -78,6 +78,23 @@ def main():
         assert app.changes, 'no changes found'
         print('mod %d: %s' % (idx, app.status.get()))
 
+    # Filters: action, category and free text narrow the table; Clear shows everything again.
+    total = len(app.changes)
+    assert len(app.tree.get_children()) == total
+    app.filter_action.set('Update')
+    app.fill_tree()
+    rows = app.tree.get_children()
+    assert rows and all(app.tree.item(r, 'tags')[0] == 'update' for r in rows)
+    cat = app.filter_boxes['CATEGORY']['values'][1]
+    app.filter_cat.set(cat)
+    app.fill_tree()
+    assert all(app.tree.set(r, 'category') == cat for r in app.tree.get_children())
+    app.filter_text.set('no-such-field-xyz')
+    app.fill_tree()
+    assert not app.tree.get_children() and app.shown.get() == '0 of %d shown' % total, app.shown.get()
+    app.clear_filters()
+    assert len(app.tree.get_children()) == total
+
     # Apply the last preview, then the preview must show no updates and a backup must exist.
     assert str(app.apply_btn['state']) == 'normal'
     app.status.set('')

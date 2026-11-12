@@ -7,7 +7,7 @@ New look, same workings.
 - Saves are a list on the left, grouped by solo, co-op and spectator (newest first within a group), with team, slot, season and week. The chosen save stays chosen after **Reload**.
 - A red bar at the top shows the chosen save and the mod, with tiles for updates, kept and skipped after **Show changes**.
 - The folders are under **Folders** at the bottom left; **…** replaces **Browse…**. Long paths show their end.
-- **Show kept and skipped** moved to the **Changes** panel, next to a colour legend (update, kept in gold, skipped in grey).
+- The **Changes** table can be filtered: free text over all columns, category, section and action (update, kept, skipped), with a count of the rows shown and **Clear**. This replaces the **Show kept and skipped** tick box; the legend shows the colours. **Save report…** still writes all rows.
 - Dark title bar on Windows 10 and 11.
 - Own icon for the exe, the window and the taskbar: the red/green slash with a chequered strip.
 - The window opens larger (1480 × 920, smaller on small screens) and centred.
