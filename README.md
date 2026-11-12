@@ -12,8 +12,8 @@ When a mod author updates a mod on the Steam Workshop, careers that were already
    - **Save folder:** `...\steamapps\common\Delta Manager\sauvegardes`
    - **Workshop folder:** `...\steamapps\workshop\content\4247780` (Workshop mods are stored here, not in the game's `resources\mods` folder)
 
-   If a folder is not found, press **Browse…** and point to it.
-4. Choose the **mod** (new version) and the **save**, and press **Show changes**. Nothing is written yet.
+   Both are shown under **Folders** at the bottom left. If a folder is not found, press **…** next to it and point to it.
+4. Pick the **save** in the list on the left, choose the **mod** (new version) and press **Show changes**. Nothing is written yet.
 5. Close Delta Manager, or go back to its main menu, so the game does not overwrite the save afterwards.
 6. Press **Apply update** and confirm. The list is refreshed and should show no updates left.
 7. Start the game and load the save.
@@ -76,5 +76,7 @@ python -m unittest discover -s tests -v
 Every push builds the Windows exe on GitHub Actions (artifact `DM-Save-Update-exe`).
 
 **Release:** set `__version__` in `dm_save_update/__init__.py`, add a `## X.Y.Z` section to `CHANGELOG.md`, merge to `main`, then push a tag `vX.Y.Z`. The workflow builds the exe, writes the release text (`tools/release_notes.py`: install notes from `.github/release-install.md` + the changelog section + SHA-256) and publishes the Release with the exe and its `.sha256` file. It refuses a tag that does not match `__version__`.
+
+Fonts: Barlow and Barlow Condensed (SIL Open Font License 1.1, `dm_save_update/fonts/OFL-Barlow.txt`), bundled in the exe.
 
 License: MIT.

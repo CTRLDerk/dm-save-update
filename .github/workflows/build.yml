@@ -27,7 +27,7 @@ jobs:
       - name: Build exe
         run: |
           python -m pip install --upgrade pip pyinstaller
-          pyinstaller --onefile --windowed --name DM-Save-Update update.py
+          pyinstaller --onefile --windowed --name DM-Save-Update --add-data "dm_save_update/fonts;dm_save_update/fonts" update.py
       - name: Smoke test of the exe (preview, apply, backup)
         shell: pwsh
         run: |
