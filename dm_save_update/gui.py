@@ -33,11 +33,37 @@ FONT_FILES = ('Barlow-Regular.ttf', 'Barlow-SemiBold.ttf', 'BarlowCondensed-Bold
 MODE_NAMES = {'solo': 'SOLO', 'coop': 'CO-OP', 'multi': 'CO-OP', 'spectator': 'SPECTATOR', '': 'SAVES'}
 
 
-def font_dir():
+def data_dir(name):
+    """Folder with bundled files (fonts, assets), also inside the exe."""
     base = getattr(sys, '_MEIPASS', None)
     if base:
-        return os.path.join(base, 'dm_save_update', 'fonts')
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
+        return os.path.join(base, 'dm_save_update', name)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
+
+
+def font_dir():
+    return data_dir('fonts')
+
+
+def set_icon(win):
+    """Window and taskbar icon: the .ico on Windows (sharp at every size), the .png elsewhere."""
+    try:
+        if sys.platform == 'win32':
+            win.iconbitmap(default=os.path.join(data_dir('assets'), 'icon.ico'))
+        else:
+            win._icon = tk.PhotoImage(file=os.path.join(data_dir('assets'), 'icon.png'))
+            win.iconphoto(True, win._icon)
+    except tk.TclError:
+        pass
+
+
+def start_geometry(win, width=1480, height=920, margin=80):
+    """Default size, smaller on small screens, centred."""
+    w = min(width, win.winfo_screenwidth() - margin)
+    h = min(height, win.winfo_screenheight() - margin)
+    x = max(0, (win.winfo_screenwidth() - w) // 2)
+    y = max(0, (win.winfo_screenheight() - h) // 2 - 20)
+    return '%dx%d+%d+%d' % (w, h, x, y)
 
 
 def load_fonts():
@@ -75,8 +101,9 @@ class App(tk.Tk):
         load_fonts()
         super().__init__()
         self.title('DM Save Update %s' % __version__)
-        self.geometry('1280x800')
+        self.geometry(start_geometry(self))
         self.minsize(1040, 640)
+        set_icon(self)
         self.configure(bg=P['asphalt'])
         self.saves, self.mods, self.extra_mods = [], [], []
         self.sel = {'mod': -1, 'save': -1}

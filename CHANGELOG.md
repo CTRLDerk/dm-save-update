@@ -9,6 +9,8 @@ New look, same workings.
 - The folders are under **Folders** at the bottom left; **…** replaces **Browse…**. Long paths show their end.
 - **Show kept and skipped** moved to the **Changes** panel, next to a colour legend (update, kept in gold, skipped in grey).
 - Dark title bar on Windows 10 and 11.
+- Own icon for the exe, the window and the taskbar: the red/green slash with a chequered strip.
+- The window opens larger (1480 × 920, smaller on small screens) and centred.
 
 ## 0.2.0
 First public release.

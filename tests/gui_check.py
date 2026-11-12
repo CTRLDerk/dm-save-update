@@ -43,6 +43,8 @@ def main():
 
     for name in gui.FONT_FILES + ('OFL-Barlow.txt',):
         assert os.path.isfile(os.path.join(gui.font_dir(), name)), name
+    for name in ('icon.ico', 'icon.png'):
+        assert os.path.isfile(os.path.join(gui.data_dir('assets'), name)), name
 
     app = gui.App()
     app.withdraw()
