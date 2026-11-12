@@ -86,10 +86,11 @@ def list_saves(saves_dir):
                     meta = json.load(fh)
             except (OSError, ValueError):
                 pass
-            label = '%s %s - %s, %s week %s' % (mode, name, meta.get('displayName') or meta.get('teamName') or '?',
-                                                meta.get('currentSeason', '?'), meta.get('currentWeek', '?'))
-            out.append({'path': path, 'mode': mode, 'slot': name, 'label': label,
-                        'savedAt': meta.get('savedAt') or ''})
+            team = meta.get('displayName') or meta.get('teamName') or '?'
+            season, week = meta.get('currentSeason', '?'), meta.get('currentWeek', '?')
+            label = '%s %s - %s, %s week %s' % (mode, name, team, season, week)
+            out.append({'path': path, 'mode': mode, 'slot': name, 'label': label, 'team': team,
+                        'season': season, 'week': week, 'savedAt': meta.get('savedAt') or ''})
     out.sort(key=lambda s: s['savedAt'], reverse=True)
     return out
 

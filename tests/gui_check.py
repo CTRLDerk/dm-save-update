@@ -39,12 +39,16 @@ def main():
     gui.messagebox.showinfo = info
     gui.messagebox.askyesno = lambda *a, **kw: True
 
+    for name in gui.FONT_FILES + ('OFL-Barlow.txt',):
+        assert os.path.isfile(os.path.join(gui.font_dir(), name)), name
+
     app = gui.App()
     app.withdraw()
     app.saves_dir.set(saves)
     app.workshop_dir.set(workshop)
     app.refresh_lists()
     assert len(app.saves) == 1 and len(app.mods) == 1, (app.saves, app.mods)
+    assert app.sel['save'] == 0 and len(app.save_rows) == 1, app.sel
 
     # A mod file picked by hand (Windows path with backslashes) must stay selectable.
     gui.filedialog.askopenfilename = lambda **kw: extra
