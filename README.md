@@ -45,8 +45,9 @@ Running from source instead: Python 3.8 or newer, then `python update.py`.
 
 Some settings change during a career. By default the tool keeps the save value for them:
 
-- **Era votes.** Rules adopted by a team vote (points, tyres, fuel, DRS, …) keep the voted value. Tick *Also overwrite rules changed by era votes* to replace them anyway.
-- **Major regulations.** Values the game draws again at a major regulation (global performance, development bonuses, regulation aggressiveness) keep the save value once a major regulation has happened. Tick *Also overwrite values drawn at a major regulation* to replace them anyway.
+- **Era votes.** Rules adopted by a team vote (points, tyres, fuel, DRS, …) keep the voted value. Tick *Overwrite era-vote rules* to replace them anyway.
+- **Major regulations.** Values the game draws again at a major regulation (global performance, development bonuses, regulation aggressiveness) keep the save value once a major regulation has happened. Tick *Overwrite major-regulation values* to replace them anyway.
+- **Eras.** The era list decides which votes come up in future seasons, so new or changed eras are not taken over. Tick *Add eras* to take them over anyway.
 
 A save from another mod is recognised: if none of the mod's categories are in the save, nothing is compared.
 
@@ -54,7 +55,7 @@ A save from another mod is recognised: if none of the mod's categories are in th
 
 ```
 DM-Save-Update.exe --mod <mod.json> --save <...\sauvegardes\solo\slot_1> --report report.txt
-python update.py   --mod <mod.json> --save <...\sauvegardes\solo\slot_1> [--overwrite-era] [--overwrite-major] [--apply]
+python update.py   --mod <mod.json> --save <...\sauvegardes\solo\slot_1> [--overwrite-era] [--overwrite-major] [--add-eras] [--apply]
 python update.py   --save <...\slot_1> --list-backups
 python update.py   --save <...\slot_1> --restore <...\slot_1\_dmsu_backup_...>
 ```

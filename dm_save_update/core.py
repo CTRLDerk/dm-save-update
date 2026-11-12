@@ -14,6 +14,7 @@ import copy
 import json
 import os
 import re
+import textwrap
 
 APP_ID = '4247780'
 
@@ -66,11 +67,16 @@ GAME_KEYS = {'baseLimits'}
 ACTIVE_REGULATION_KEYS = {'lapTimeCoefficients', 'qualifyingLapTimeCoefficients', 'freePracticeLapTimeCoefficients',
                           'startingRegulation', 'minimumCarWeight', 'baseLimits'}
 
+# The era list of a category: adding or changing it in a running career changes the votes of future seasons,
+# so it is only taken over when the user asks for it (option "add eras").
+ERA_LIST_KEYS = {'eras'}
+
 # Actions in a change list.
 UPDATE = 'update'
 KEEP_ERA = 'keep (era vote)'
 KEEP_MAJOR = 'keep (major regulation)'
 KEEP_GAME = 'keep (set by the game)'
+KEEP_ERAS = 'keep (eras)'
 NOT_ADDED = 'not added'
 NOT_IN_MOD = 'not in mod'
 
@@ -269,9 +275,10 @@ class Change:
 
 
 class Options:
-    def __init__(self, overwrite_era=False, overwrite_major=False):
+    def __init__(self, overwrite_era=False, overwrite_major=False, add_eras=False):
         self.overwrite_era = overwrite_era
         self.overwrite_major = overwrite_major
+        self.add_eras = add_eras
 
 
 def compare(mod, save, options=None, apply=False):
@@ -300,6 +307,8 @@ def compare(mod, save, options=None, apply=False):
             notes.append('%s: a major regulation has already happened. Values the game draws again at a major '
                          '(%s) keep the save value.' % (cname, ', '.join(sorted(MAJOR_KEYS))))
         protect = {k: KEEP_GAME for k in GAME_KEYS}
+        if not options.add_eras:
+            protect.update({k: KEEP_ERAS for k in ERA_LIST_KEYS})
         if not options.overwrite_era:
             protect.update({k: KEEP_ERA for k in era_keys})
         if major and not options.overwrite_major:
@@ -377,6 +386,8 @@ def _same_shape_dict_lists(a, b):
 
 
 def _note_for(path, action):
+    if action == KEEP_ERAS:
+        return 'Eras decide the votes of future seasons. Turn on "add eras" to take them over.'
     if action:
         return ''
     if any(p in ACTIVE_REGULATION_KEYS for p in path):
@@ -442,13 +453,37 @@ def report_text(changes, notes, mod_label, save_label):
     lines.append('Summary: ' + (', '.join('%s %d' % (k, v) for k, v in sorted(counts.items())) or 'no differences'))
     for n in notes:
         lines.append('* ' + n)
-    current = None
+    # Whole entities that are not added or no longer in the mod are listed on one line per section.
+    groups = {}
+    for c in changes:
+        if c.action in GROUPED_ACTIONS and not c.path:
+            groups.setdefault((c.category, c.section, c.action), []).append(c)
+    current, done = None, set()
     for c in changes:
         head = '%s / %s' % (c.category, c.section)
         if head != current:
             lines += ['', '## ' + head]
             current = head
+        key = (c.category, c.section, c.action)
+        group = groups.get(key)
+        if group and len(group) > 1:
+            if key not in done:
+                done.add(key)
+                lines.extend(_group_lines(group))
+            continue
         what = ' > '.join(x for x in (c.item, c.path) if x)
         lines.append('- [%s] %s: %s -> %s%s' % (c.action, what, short(c.old), short(c.new),
                                                 ('  (' + c.note + ')') if c.note else ''))
     return '\n'.join(lines) + '\n'
+
+
+GROUPED_ACTIONS = {NOT_ADDED, NOT_IN_MOD}
+
+
+def _group_lines(group):
+    """'- [not added] 175 items (note):' followed by the names, wrapped."""
+    first = group[0]
+    head = '- [%s] %d items%s:' % (first.action, len(group), ('  (' + first.note + ')') if first.note else '')
+    body = textwrap.wrap(', '.join(c.item for c in group), width=110, initial_indent='    ',
+                         subsequent_indent='    ', break_on_hyphens=False)
+    return [head] + body

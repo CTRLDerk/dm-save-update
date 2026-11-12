@@ -3,7 +3,7 @@
 Without arguments the window opens. On the command line:
 
     python update.py --mod <mod.json> --save <sauvegardes/solo/slot_N> [--report report.txt]
-                     [--overwrite-era] [--overwrite-major] [--apply]
+                     [--overwrite-era] [--overwrite-major] [--add-eras] [--apply]
     python update.py --save <sauvegardes/solo/slot_N> --list-backups
     python update.py --save <sauvegardes/solo/slot_N> --restore <backup folder>
 
@@ -22,6 +22,7 @@ def cli(argv):
     ap.add_argument('--report', help='write the preview to this file instead of the screen')
     ap.add_argument('--overwrite-era', action='store_true', help='also overwrite rules changed by era votes')
     ap.add_argument('--overwrite-major', action='store_true', help='also overwrite values drawn at a major regulation')
+    ap.add_argument('--add-eras', action='store_true', help='also add or update the eras (changes future era votes)')
     ap.add_argument('--apply', action='store_true', help='write the update (a backup is made first)')
     ap.add_argument('--list-backups', action='store_true', help='list the backups in the save folder')
     ap.add_argument('--restore', metavar='BACKUP', help='put a backup folder back')
@@ -38,7 +39,7 @@ def cli(argv):
     if not args.mod:
         ap.error('--mod is needed')
     mod = core.load_json(args.mod)
-    opts = core.Options(args.overwrite_era, args.overwrite_major)
+    opts = core.Options(args.overwrite_era, args.overwrite_major, args.add_eras)
     if args.apply:
         applied, _, backup = apply.apply_update(mod, args.save, opts, args.mod)
         out.append('Applied %d updates. Backup: %s\n\n' % (len(applied), backup or '- (nothing to do)'))

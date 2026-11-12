@@ -18,6 +18,7 @@ ACTION_TAGS = {
     core.KEEP_ERA: 'keep',
     core.KEEP_MAJOR: 'keep',
     core.KEEP_GAME: 'keep',
+    core.KEEP_ERAS: 'keep',
     core.NOT_ADDED: 'skip',
     core.NOT_IN_MOD: 'skip',
 }
@@ -117,6 +118,7 @@ class App(tk.Tk):
         self.workshop_dir = tk.StringVar(value=steam.find_workshop_dir())
         self.overwrite_era = tk.BooleanVar(value=False)
         self.overwrite_major = tk.BooleanVar(value=False)
+        self.add_eras = tk.BooleanVar(value=False)
         self.filter_text = tk.StringVar()
         self.filter_cat = tk.StringVar(value=ALL)
         self.filter_sec = tk.StringVar(value=ALL)
@@ -314,6 +316,7 @@ class App(tk.Tk):
         ttk.Checkbutton(bar, text='Overwrite era-vote rules', variable=self.overwrite_era).pack(side='left')
         ttk.Checkbutton(bar, text='Overwrite major-regulation values', variable=self.overwrite_major).pack(
             side='left', padx=(14, 0))
+        ttk.Checkbutton(bar, text='Add eras', variable=self.add_eras).pack(side='left', padx=(14, 0))
         self.apply_btn = ttk.Button(bar, text='APPLY UPDATE', style='Pri.TButton', command=self.run_apply,
                                     state='disabled')
         self.apply_btn.pack(side='right')
@@ -335,6 +338,7 @@ class App(tk.Tk):
         head = tk.Frame(table, bg=P['pit'])
         head.pack(fill='x', pady=(0, 8))
         self._sec(head, 'Changes').pack(side='left')
+        self._label(head, textvariable=self.shown, font='cap', fg='muted').pack(side='left', padx=10, pady=(6, 0))
         legend = tk.Frame(head, bg=P['pit'])
         legend.pack(side='right')
         for text, colour in (('UPDATE', 'chrome'), ('KEPT', 'gold'), ('SKIPPED', 'faint')):
@@ -345,10 +349,10 @@ class App(tk.Tk):
         frame = tk.Frame(table, bg=P['pit'])
         frame.pack(fill='both', expand=True)
         self.tree = ttk.Treeview(frame, columns=cols, show='headings')
-        widths = (150, 75, 120, 300, 120, 120, 110)
+        widths = (130, 70, 110, 250, 100, 100, 90)
         for c, w in zip(cols, widths):
             self.tree.heading(c, text=(c + ' value' if c in ('save', 'mod') else c).upper(), anchor='w')
-            self.tree.column(c, width=w, minwidth=60, stretch=c in ('item', 'field', 'save', 'mod'))
+            self.tree.column(c, width=w, minwidth=50, stretch=True)
         ysb = ttk.Scrollbar(frame, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=ysb.set)
         self.tree.pack(side='left', fill='both', expand=True)
@@ -358,30 +362,31 @@ class App(tk.Tk):
         self.tree.tag_configure('skip', foreground=P['faint'])
         self.tree.tag_configure('odd', background=P['row2'])
 
+        # footer and status are packed before the table so they stay visible in a small window
+        status = self._label(main, textvariable=self.status, font='small', fg='faint', bg='asphalt', anchor='w')
+        status.pack(side='bottom', fill='x', pady=(8, 0), before=table)
         foot = tk.Frame(main, bg=P['asphalt'])
-        foot.pack(fill='x', pady=(12, 0))
+        foot.pack(side='bottom', fill='x', pady=(12, 0), before=table)
         ttk.Button(foot, text='RESTORE BACKUP…', style='Out.TButton', command=self.open_restore).pack(side='left')
         ttk.Button(foot, text='SAVE REPORT…', style='Out.TButton', command=self.save_report).pack(side='left',
                                                                                               padx=8)
         self._label(foot, 'Close Delta Manager (or go back to its main menu) before you apply or restore. '
                           'A backup is made in the save folder first.', 'small', 'muted', 'asphalt',
                     wraplength=520, justify='left').pack(side='left', padx=8)
-        self._label(main, textvariable=self.status, font='small', fg='faint', bg='asphalt', anchor='w').pack(
-            fill='x', pady=(8, 0))
 
     def _build_filters(self, table):
         """Filter row above the table: free text over all columns, category, section and action."""
         row = tk.Frame(table, bg=P['pit'])
         row.pack(fill='x', pady=(0, 8))
         self._label(row, 'FILTER', 'cap', 'muted').pack(side='left', padx=(0, 6))
-        entry = tk.Entry(row, textvariable=self.filter_text, width=24, font=self.f['small'], bg=P['asphalt'],
+        entry = tk.Entry(row, textvariable=self.filter_text, width=18, font=self.f['small'], bg=P['asphalt'],
                          fg=P['chrome'], insertbackground=P['chrome'], relief='flat', highlightthickness=1,
                          highlightbackground=P['line'], highlightcolor=P['gold'])
         entry.pack(side='left', ipady=5)
         entry.bind('<Escape>', lambda e: self.filter_text.set(''))
         self.filter_boxes = {}
-        for caption, var, width in (('CATEGORY', self.filter_cat, 22), ('SECTION', self.filter_sec, 14),
-                                    ('ACTION', self.filter_action, 10)):
+        for caption, var, width in (('CATEGORY', self.filter_cat, 18), ('SECTION', self.filter_sec, 12),
+                                    ('ACTION', self.filter_action, 8)):
             self._label(row, caption, 'cap', 'muted').pack(side='left', padx=(14, 6))
             box = ttk.Combobox(row, textvariable=var, state='readonly', width=width, font=self.f['small'],
                                values=ACTION_FILTERS if var is self.filter_action else (ALL,))
@@ -389,7 +394,6 @@ class App(tk.Tk):
             box.bind('<<ComboboxSelected>>', lambda e: self.fill_tree())
             self.filter_boxes[caption] = box
         ttk.Button(row, text='CLEAR', style='Out.TButton', command=self.clear_filters).pack(side='left', padx=(10, 0))
-        self._label(row, textvariable=self.shown, font='small', fg='muted', anchor='e').pack(side='right')
         self.filter_text.trace_add('write', lambda *a: self._filter_later())
 
     def _filter_later(self):
@@ -599,7 +603,7 @@ class App(tk.Tk):
         return self.mods[mi], self.saves[si]
 
     def _compare_options(self):
-        return core.Options(self.overwrite_era.get(), self.overwrite_major.get())
+        return core.Options(self.overwrite_era.get(), self.overwrite_major.get(), self.add_eras.get())
 
     def run_compare(self, after_apply=None):
         choice = self._chosen_entries()
@@ -634,7 +638,7 @@ class App(tk.Tk):
             updates = sum(1 for c in changes if c.action == core.UPDATE)
             if updates:
                 self.preview = {'mod': mod, 'mod_entry': mod_entry, 'save_entry': save_entry, 'mtime': save.mtime,
-                                'options': (opts.overwrite_era, opts.overwrite_major), 'updates': updates}
+                                'options': (opts.overwrite_era, opts.overwrite_major, opts.add_eras), 'updates': updates}
                 self.apply_btn.config(state='normal')
 
         self._run_in_thread(work, done)
@@ -660,7 +664,7 @@ class App(tk.Tk):
         choice = self._chosen_entries()
         opts = self._compare_options()
         if (not choice or choice[0] is not pv['mod_entry'] or choice[1] is not pv['save_entry']
-                or (opts.overwrite_era, opts.overwrite_major) != pv['options']):
+                or (opts.overwrite_era, opts.overwrite_major, opts.add_eras) != pv['options']):
             messagebox.showinfo('DM Save Update', 'The choice changed after the preview. Press "Show changes" again.')
             return
         save_entry = pv['save_entry']
