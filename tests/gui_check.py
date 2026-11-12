@@ -17,6 +17,8 @@ def main():
     tmp = tempfile.mkdtemp()
     saves = os.path.join(tmp, 'Delta Manager', 'sauvegardes')
     write_save(os.path.join(saves, 'solo', 'slot_1'))
+    write_save(os.path.join(saves, 'spectator', 'slot_2'))
+    write_save(os.path.join(saves, 'solo', 'slot_3'))
     workshop = os.path.join(tmp, 'workshop', 'content', '4247780')
     os.makedirs(os.path.join(workshop, '123'))
     with open(os.path.join(workshop, '123', 'mod.json'), 'w', encoding='utf-8') as fh:
@@ -47,8 +49,11 @@ def main():
     app.saves_dir.set(saves)
     app.workshop_dir.set(workshop)
     app.refresh_lists()
-    assert len(app.saves) == 1 and len(app.mods) == 1, (app.saves, app.mods)
-    assert app.sel['save'] == 0 and len(app.save_rows) == 1, app.sel
+    assert len(app.saves) == 3 and len(app.mods) == 1, (app.saves, app.mods)
+    assert app.sel['save'] == 0 and len(app.save_rows) == 3, app.sel
+    modes = [s['mode'] for s in app.saves]
+    assert modes == sorted(modes, key=('solo', 'coop', 'spectator').index), modes  # one group per mode
+    app.choose_save([s['slot'] for s in app.saves].index('slot_1'))
 
     # A mod file picked by hand (Windows path with backslashes) must stay selectable.
     gui.filedialog.askopenfilename = lambda **kw: extra

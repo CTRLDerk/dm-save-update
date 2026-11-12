@@ -217,6 +217,7 @@ class App(tk.Tk):
 
     def _build_side(self, side):
         # folders at the bottom, the save list fills the rest
+        self.folder_entries = []
         folders = tk.Frame(side, bg=P['pit'])
         folders.pack(side='bottom', fill='x', pady=(12, 0))
         self._sec(folders, 'Folders').pack(anchor='w', pady=(0, 6))
@@ -225,10 +226,11 @@ class App(tk.Tk):
             self._label(folders, caption, 'cap', 'muted').pack(anchor='w', pady=(6, 2))
             row = tk.Frame(folders, bg=P['pit'])
             row.pack(fill='x')
-            tk.Entry(row, textvariable=var, font=self.f['small'], bg=P['asphalt'], fg=P['chrome'],
-                     insertbackground=P['chrome'], relief='flat', highlightthickness=1,
-                     highlightbackground=P['line'], highlightcolor=P['gold']).pack(side='left', fill='x',
-                                                                                    expand=True, ipady=5)
+            entry = tk.Entry(row, textvariable=var, font=self.f['small'], bg=P['asphalt'], fg=P['chrome'],
+                             insertbackground=P['chrome'], relief='flat', highlightthickness=1,
+                             highlightbackground=P['line'], highlightcolor=P['gold'])
+            entry.pack(side='left', fill='x', expand=True, ipady=5)
+            self.folder_entries.append(entry)
             ttk.Button(row, text='…', width=3, style='Out.TButton',
                        command=lambda v=var: self.browse(v)).pack(side='left', padx=(4, 0))
 
@@ -473,8 +475,12 @@ class App(tk.Tk):
 
     def refresh_lists(self):
         old = self.saves[self.sel['save']]['path'] if 0 <= self.sel['save'] < len(self.saves) else None
-        self.saves = steam.list_saves(self.saves_dir.get())
+        # one group per mode (solo, co-op, spectator), newest save first within a group
+        order = {m: i for i, m in enumerate(steam.SAVE_MODES)}
+        self.saves = sorted(steam.list_saves(self.saves_dir.get()), key=lambda s: order.get(s['mode'], len(order)))
         self._fill_save_list()
+        for entry in self.folder_entries:
+            entry.xview_moveto(1)  # show the end of a long path
         keep = next((i for i, s in enumerate(self.saves) if s['path'] == old), 0)
         self.sel['save'] = -1
         self.counts = None
