@@ -311,10 +311,10 @@ class App(tk.Tk):
         frame = tk.Frame(table, bg=P['pit'])
         frame.pack(fill='both', expand=True)
         self.tree = ttk.Treeview(frame, columns=cols, show='headings')
-        widths = (100, 80, 150, 190, 130, 130, 130)
+        widths = (150, 75, 120, 300, 120, 120, 110)
         for c, w in zip(cols, widths):
             self.tree.heading(c, text=(c + ' value' if c in ('save', 'mod') else c).upper(), anchor='w')
-            self.tree.column(c, width=w, stretch=c in ('item', 'field', 'save', 'mod'))
+            self.tree.column(c, width=w, minwidth=60, stretch=c in ('item', 'field', 'save', 'mod'))
         ysb = ttk.Scrollbar(frame, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=ysb.set)
         self.tree.pack(side='left', fill='both', expand=True)
