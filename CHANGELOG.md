@@ -1,14 +1,20 @@
 # Changelog
 
 ## 0.3.0
-New look, same workings.
+New look, an option for eras and a shorter report.
+
+- **Eras are no longer taken over by default.** The era list decides which votes come up in future seasons of a running career. New or changed eras now show as *keep (eras)*; tick **Add eras** (or `--add-eras`) to take them over.
+- **Report:** sponsors, naming sponsors and circuits that are not added or no longer in the mod are listed on one line per section (count, note once, then the names) instead of one line each.
 
 - The window now has the DM Save Card style: dark top bar, red/green slash, chequered strip, panels with `//` headings, Barlow fonts (bundled in the exe).
-- Saves are a list on the left, grouped by solo, co-op and spectator, with team, slot, season and week. The chosen save stays chosen after **Reload**.
+- Saves are a list on the left, grouped by solo, co-op and spectator (newest first within a group), with team, slot, season and week. The chosen save stays chosen after **Reload**.
 - A red bar at the top shows the chosen save and the mod, with tiles for updates, kept and skipped after **Show changes**.
-- The folders are under **Folders** at the bottom left; **…** replaces **Browse…**.
-- **Show kept and skipped** moved to the **Changes** panel, next to a colour legend (update, kept in gold, skipped in grey).
+- The folders are under **Folders** at the bottom left; **…** replaces **Browse…**. Long paths show their end.
+- The **Changes** table can be filtered: free text over all columns, category, section and action (update, kept, skipped), with a count of the rows shown and **Clear**. This replaces the **Show kept and skipped** tick box; the legend shows the colours. **Save report…** still writes all rows.
 - Dark title bar on Windows 10 and 11.
+- The footer and status line stay visible in a small window; the row count sits next to the **Changes** heading.
+- Own icon for the exe, the window and the taskbar: the red/green slash with a chequered strip.
+- The window opens larger (1480 × 920, smaller on small screens) and centred.
 
 ## 0.2.0
 First public release.

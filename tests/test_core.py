@@ -143,6 +143,28 @@ class CompareTest(unittest.TestCase):
         changes, _ = core.compare(make_mod(), save, core.Options(overwrite_era=True))
         self.assertTrue(by(changes, category='Cup', path='gameplay.pointsSystem', action=core.UPDATE))
 
+    def test_eras_only_with_option(self):
+        mod = make_mod()
+        mod['generalData']['eras'] = [{'id': 'era_1', 'name': 'Proving Ground', 'fromYear': 2025}]
+        save = write_save(self.dir)
+        changes, _ = core.compare(mod, save)
+        era = by(changes, category='Cup', path='eras')
+        self.assertTrue(era and era[0].action == core.KEEP_ERAS and 'add eras' in era[0].note)
+        changes, _ = core.compare(mod, save, core.Options(add_eras=True), apply=True)
+        self.assertTrue(by(changes, category='Cup', path='eras', action=core.UPDATE))
+        cup = [c for c in save.categories() if c['name'] == 'Cup'][0]
+        self.assertEqual(cup['general']['eras'][0]['name'], 'Proving Ground')
+
+    def test_report_groups_entities_not_added(self):
+        mod = make_mod()
+        mod['sponsors'] += [{'id': i, 'name': 'New %d' % i, 'baseAmount': 1.0} for i in range(100, 140)]
+        changes, notes = core.compare(mod, write_save(self.dir))
+        text = core.report_text(changes, notes, 'm', 's')
+        self.assertIn('- [not added] 40 items  (New in the mod.', text)
+        self.assertIn('New 100 (100), New 101 (101)', text)
+        self.assertEqual(text.count('[not added]'), 2)  # the 40 sponsors on one line, the single circuit as before
+        self.assertTrue(all(len(line) <= 120 for line in text.splitlines() if line.startswith('    New')))
+
     def test_major_regulation_keeps_drawn_values(self):
         changes, _ = core.compare(make_mod(), write_save(self.dir, current_season=2031))
         self.assertTrue(by(changes, category='Cup', path='gameplay.globalPerformance', action=core.KEEP_MAJOR))

@@ -18,6 +18,7 @@ ACTION_TAGS = {
     core.KEEP_ERA: 'keep',
     core.KEEP_MAJOR: 'keep',
     core.KEEP_GAME: 'keep',
+    core.KEEP_ERAS: 'keep',
     core.NOT_ADDED: 'skip',
     core.NOT_IN_MOD: 'skip',
 }
@@ -30,14 +31,43 @@ P = {
 }
 FONT_FILES = ('Barlow-Regular.ttf', 'Barlow-SemiBold.ttf', 'BarlowCondensed-Bold.ttf',
               'BarlowCondensed-ExtraBoldItalic.ttf')
+ALL = 'All'
+ACTION_FILTERS = (ALL, 'Update', 'Kept', 'Skipped')
+FILTER_TAGS = {'Update': 'update', 'Kept': 'keep', 'Skipped': 'skip'}
 MODE_NAMES = {'solo': 'SOLO', 'coop': 'CO-OP', 'multi': 'CO-OP', 'spectator': 'SPECTATOR', '': 'SAVES'}
 
 
-def font_dir():
+def data_dir(name):
+    """Folder with bundled files (fonts, assets), also inside the exe."""
     base = getattr(sys, '_MEIPASS', None)
     if base:
-        return os.path.join(base, 'dm_save_update', 'fonts')
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
+        return os.path.join(base, 'dm_save_update', name)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
+
+
+def font_dir():
+    return data_dir('fonts')
+
+
+def set_icon(win):
+    """Window and taskbar icon: the .ico on Windows (sharp at every size), the .png elsewhere."""
+    try:
+        if sys.platform == 'win32':
+            win.iconbitmap(default=os.path.join(data_dir('assets'), 'icon.ico'))
+        else:
+            win._icon = tk.PhotoImage(file=os.path.join(data_dir('assets'), 'icon.png'))
+            win.iconphoto(True, win._icon)
+    except tk.TclError:
+        pass
+
+
+def start_geometry(win, width=1480, height=920, margin=80):
+    """Default size, smaller on small screens, centred."""
+    w = min(width, win.winfo_screenwidth() - margin)
+    h = min(height, win.winfo_screenheight() - margin)
+    x = max(0, (win.winfo_screenwidth() - w) // 2)
+    y = max(0, (win.winfo_screenheight() - h) // 2 - 20)
+    return '%dx%d+%d+%d' % (w, h, x, y)
 
 
 def load_fonts():
@@ -75,8 +105,9 @@ class App(tk.Tk):
         load_fonts()
         super().__init__()
         self.title('DM Save Update %s' % __version__)
-        self.geometry('1280x800')
+        self.geometry(start_geometry(self))
         self.minsize(1040, 640)
+        set_icon(self)
         self.configure(bg=P['asphalt'])
         self.saves, self.mods, self.extra_mods = [], [], []
         self.sel = {'mod': -1, 'save': -1}
@@ -87,7 +118,13 @@ class App(tk.Tk):
         self.workshop_dir = tk.StringVar(value=steam.find_workshop_dir())
         self.overwrite_era = tk.BooleanVar(value=False)
         self.overwrite_major = tk.BooleanVar(value=False)
-        self.show_kept = tk.BooleanVar(value=True)
+        self.add_eras = tk.BooleanVar(value=False)
+        self.filter_text = tk.StringVar()
+        self.filter_cat = tk.StringVar(value=ALL)
+        self.filter_sec = tk.StringVar(value=ALL)
+        self.filter_action = tk.StringVar(value=ALL)
+        self.shown = tk.StringVar()
+        self._filter_job = None
         self.status = tk.StringVar()
         self._fonts()
         self._style()
@@ -217,6 +254,7 @@ class App(tk.Tk):
 
     def _build_side(self, side):
         # folders at the bottom, the save list fills the rest
+        self.folder_entries = []
         folders = tk.Frame(side, bg=P['pit'])
         folders.pack(side='bottom', fill='x', pady=(12, 0))
         self._sec(folders, 'Folders').pack(anchor='w', pady=(0, 6))
@@ -225,10 +263,11 @@ class App(tk.Tk):
             self._label(folders, caption, 'cap', 'muted').pack(anchor='w', pady=(6, 2))
             row = tk.Frame(folders, bg=P['pit'])
             row.pack(fill='x')
-            tk.Entry(row, textvariable=var, font=self.f['small'], bg=P['asphalt'], fg=P['chrome'],
-                     insertbackground=P['chrome'], relief='flat', highlightthickness=1,
-                     highlightbackground=P['line'], highlightcolor=P['gold']).pack(side='left', fill='x',
-                                                                                    expand=True, ipady=5)
+            entry = tk.Entry(row, textvariable=var, font=self.f['small'], bg=P['asphalt'], fg=P['chrome'],
+                             insertbackground=P['chrome'], relief='flat', highlightthickness=1,
+                             highlightbackground=P['line'], highlightcolor=P['gold'])
+            entry.pack(side='left', fill='x', expand=True, ipady=5)
+            self.folder_entries.append(entry)
             ttk.Button(row, text='…', width=3, style='Out.TButton',
                        command=lambda v=var: self.browse(v)).pack(side='left', padx=(4, 0))
 
@@ -277,6 +316,7 @@ class App(tk.Tk):
         ttk.Checkbutton(bar, text='Overwrite era-vote rules', variable=self.overwrite_era).pack(side='left')
         ttk.Checkbutton(bar, text='Overwrite major-regulation values', variable=self.overwrite_major).pack(
             side='left', padx=(14, 0))
+        ttk.Checkbutton(bar, text='Add eras', variable=self.add_eras).pack(side='left', padx=(14, 0))
         self.apply_btn = ttk.Button(bar, text='APPLY UPDATE', style='Pri.TButton', command=self.run_apply,
                                     state='disabled')
         self.apply_btn.pack(side='right')
@@ -298,21 +338,21 @@ class App(tk.Tk):
         head = tk.Frame(table, bg=P['pit'])
         head.pack(fill='x', pady=(0, 8))
         self._sec(head, 'Changes').pack(side='left')
+        self._label(head, textvariable=self.shown, font='cap', fg='muted').pack(side='left', padx=10, pady=(6, 0))
         legend = tk.Frame(head, bg=P['pit'])
         legend.pack(side='right')
-        ttk.Checkbutton(legend, text='Show kept and skipped', variable=self.show_kept,
-                        command=self.fill_tree).pack(side='left', padx=(0, 6))
         for text, colour in (('UPDATE', 'chrome'), ('KEPT', 'gold'), ('SKIPPED', 'faint')):
             tk.Frame(legend, bg=P[colour], width=10, height=10).pack(side='left', padx=(12, 5))
             self._label(legend, text, 'cap', 'muted').pack(side='left')
         cols = ('category', 'section', 'item', 'field', 'save', 'mod', 'action')
+        self._build_filters(table)
         frame = tk.Frame(table, bg=P['pit'])
         frame.pack(fill='both', expand=True)
         self.tree = ttk.Treeview(frame, columns=cols, show='headings')
-        widths = (100, 80, 150, 190, 130, 130, 130)
+        widths = (130, 70, 110, 250, 100, 100, 90)
         for c, w in zip(cols, widths):
             self.tree.heading(c, text=(c + ' value' if c in ('save', 'mod') else c).upper(), anchor='w')
-            self.tree.column(c, width=w, stretch=c in ('item', 'field', 'save', 'mod'))
+            self.tree.column(c, width=w, minwidth=50, stretch=True)
         ysb = ttk.Scrollbar(frame, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=ysb.set)
         self.tree.pack(side='left', fill='both', expand=True)
@@ -322,16 +362,59 @@ class App(tk.Tk):
         self.tree.tag_configure('skip', foreground=P['faint'])
         self.tree.tag_configure('odd', background=P['row2'])
 
+        # footer and status are packed before the table so they stay visible in a small window
+        status = self._label(main, textvariable=self.status, font='small', fg='faint', bg='asphalt', anchor='w')
+        status.pack(side='bottom', fill='x', pady=(8, 0), before=table)
         foot = tk.Frame(main, bg=P['asphalt'])
-        foot.pack(fill='x', pady=(12, 0))
+        foot.pack(side='bottom', fill='x', pady=(12, 0), before=table)
         ttk.Button(foot, text='RESTORE BACKUP…', style='Out.TButton', command=self.open_restore).pack(side='left')
         ttk.Button(foot, text='SAVE REPORT…', style='Out.TButton', command=self.save_report).pack(side='left',
                                                                                               padx=8)
         self._label(foot, 'Close Delta Manager (or go back to its main menu) before you apply or restore. '
                           'A backup is made in the save folder first.', 'small', 'muted', 'asphalt',
                     wraplength=520, justify='left').pack(side='left', padx=8)
-        self._label(main, textvariable=self.status, font='small', fg='faint', bg='asphalt', anchor='w').pack(
-            fill='x', pady=(8, 0))
+
+    def _build_filters(self, table):
+        """Filter row above the table: free text over all columns, category, section and action."""
+        row = tk.Frame(table, bg=P['pit'])
+        row.pack(fill='x', pady=(0, 8))
+        self._label(row, 'FILTER', 'cap', 'muted').pack(side='left', padx=(0, 6))
+        entry = tk.Entry(row, textvariable=self.filter_text, width=18, font=self.f['small'], bg=P['asphalt'],
+                         fg=P['chrome'], insertbackground=P['chrome'], relief='flat', highlightthickness=1,
+                         highlightbackground=P['line'], highlightcolor=P['gold'])
+        entry.pack(side='left', ipady=5)
+        entry.bind('<Escape>', lambda e: self.filter_text.set(''))
+        self.filter_boxes = {}
+        for caption, var, width in (('CATEGORY', self.filter_cat, 18), ('SECTION', self.filter_sec, 12),
+                                    ('ACTION', self.filter_action, 8)):
+            self._label(row, caption, 'cap', 'muted').pack(side='left', padx=(14, 6))
+            box = ttk.Combobox(row, textvariable=var, state='readonly', width=width, font=self.f['small'],
+                               values=ACTION_FILTERS if var is self.filter_action else (ALL,))
+            box.pack(side='left')
+            box.bind('<<ComboboxSelected>>', lambda e: self.fill_tree())
+            self.filter_boxes[caption] = box
+        ttk.Button(row, text='CLEAR', style='Out.TButton', command=self.clear_filters).pack(side='left', padx=(10, 0))
+        self.filter_text.trace_add('write', lambda *a: self._filter_later())
+
+    def _filter_later(self):
+        """Refill the table shortly after typing stops (hundreds of rows)."""
+        if self._filter_job:
+            self.after_cancel(self._filter_job)
+        self._filter_job = self.after(200, self.fill_tree)
+
+    def clear_filters(self):
+        for var in (self.filter_cat, self.filter_sec, self.filter_action):
+            var.set(ALL)
+        self.filter_text.set('')
+        self.fill_tree()
+
+    def _filter_choices(self):
+        """Category and section lists from the current result; a choice that no longer exists falls back to All."""
+        for caption, var, attr in (('CATEGORY', self.filter_cat, 'category'), ('SECTION', self.filter_sec, 'section')):
+            values = [ALL] + sorted({str(getattr(c, attr)) for c in self.changes if getattr(c, attr)})
+            self.filter_boxes[caption]['values'] = values
+            if var.get() not in values:
+                var.set(ALL)
 
     # ------------------------------------------------------------- save list and hero
     def _fill_save_list(self):
@@ -473,8 +556,12 @@ class App(tk.Tk):
 
     def refresh_lists(self):
         old = self.saves[self.sel['save']]['path'] if 0 <= self.sel['save'] < len(self.saves) else None
-        self.saves = steam.list_saves(self.saves_dir.get())
+        # one group per mode (solo, co-op, spectator), newest save first within a group
+        order = {m: i for i, m in enumerate(steam.SAVE_MODES)}
+        self.saves = sorted(steam.list_saves(self.saves_dir.get()), key=lambda s: order.get(s['mode'], len(order)))
         self._fill_save_list()
+        for entry in self.folder_entries:
+            entry.xview_moveto(1)  # show the end of a long path
         keep = next((i for i, s in enumerate(self.saves) if s['path'] == old), 0)
         self.sel['save'] = -1
         self.counts = None
@@ -516,7 +603,7 @@ class App(tk.Tk):
         return self.mods[mi], self.saves[si]
 
     def _compare_options(self):
-        return core.Options(self.overwrite_era.get(), self.overwrite_major.get())
+        return core.Options(self.overwrite_era.get(), self.overwrite_major.get(), self.add_eras.get())
 
     def run_compare(self, after_apply=None):
         choice = self._chosen_entries()
@@ -551,7 +638,7 @@ class App(tk.Tk):
             updates = sum(1 for c in changes if c.action == core.UPDATE)
             if updates:
                 self.preview = {'mod': mod, 'mod_entry': mod_entry, 'save_entry': save_entry, 'mtime': save.mtime,
-                                'options': (opts.overwrite_era, opts.overwrite_major), 'updates': updates}
+                                'options': (opts.overwrite_era, opts.overwrite_major, opts.add_eras), 'updates': updates}
                 self.apply_btn.config(state='normal')
 
         self._run_in_thread(work, done)
@@ -560,6 +647,7 @@ class App(tk.Tk):
         self.changes, self.notes, self.result_labels = changes, notes, label
         self.note_box.delete('1.0', 'end')
         self.note_box.insert('end', '\n'.join(notes) or 'No notes.')
+        self._filter_choices()
         self.fill_tree()
         self.counts = {'update': 0, 'keep': 0, 'skip': 0}
         for c in changes:
@@ -576,7 +664,7 @@ class App(tk.Tk):
         choice = self._chosen_entries()
         opts = self._compare_options()
         if (not choice or choice[0] is not pv['mod_entry'] or choice[1] is not pv['save_entry']
-                or (opts.overwrite_era, opts.overwrite_major) != pv['options']):
+                or (opts.overwrite_era, opts.overwrite_major, opts.add_eras) != pv['options']):
             messagebox.showinfo('DM Save Update', 'The choice changed after the preview. Press "Show changes" again.')
             return
         save_entry = pv['save_entry']
@@ -654,18 +742,32 @@ class App(tk.Tk):
         ttk.Button(btns, text='RESTORE', style='Pri.TButton', command=do_restore).pack(side='right')
         ttk.Button(btns, text='CANCEL', style='Out.TButton', command=win.destroy).pack(side='right', padx=8)
 
-    def fill_tree(self):
-        self.tree.delete(*self.tree.get_children())
-        n = 0
+    def visible_changes(self):
+        """The changes that pass the filters, with their row values."""
+        text = self.filter_text.get().strip().lower()
+        cat, sec = self.filter_cat.get(), self.filter_sec.get()
+        want = FILTER_TAGS.get(self.filter_action.get())
+        out = []
         for c in self.changes:
             tag = ACTION_TAGS.get(c.action, 'update')
-            if tag != 'update' and not self.show_kept.get():
+            if want and tag != want:
                 continue
-            tags = (tag, 'odd') if n % 2 else (tag,)
-            n += 1
-            self.tree.insert('', 'end', tags=tags, values=(
-                c.category, c.section, c.item, c.path, core.short(c.old, 60), core.short(c.new, 60),
-                c.action + (' *' if c.note else '')))
+            if cat != ALL and str(c.category) != cat or sec != ALL and str(c.section) != sec:
+                continue
+            values = (c.category, c.section, c.item, c.path, core.short(c.old, 60), core.short(c.new, 60),
+                      c.action + (' *' if c.note else ''))
+            if text and text not in ' '.join(str(v) for v in values).lower():
+                continue
+            out.append((tag, values))
+        return out
+
+    def fill_tree(self):
+        self._filter_job = None
+        self.tree.delete(*self.tree.get_children())
+        rows = self.visible_changes()
+        for n, (tag, values) in enumerate(rows):
+            self.tree.insert('', 'end', tags=(tag, 'odd') if n % 2 else (tag,), values=values)
+        self.shown.set('%d of %d shown' % (len(rows), len(self.changes)) if self.changes else '')
 
     def save_report(self):
         if not self.changes and not self.notes:
