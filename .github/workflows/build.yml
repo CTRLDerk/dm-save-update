@@ -3,7 +3,7 @@ name: build
 on:
   push:
     branches: ['**']
-    tags: ['v*']
+    tags: ['v*', 'V*']
   pull_request:
   workflow_dispatch:
 
@@ -47,7 +47,7 @@ jobs:
           name: DM-Save-Update-exe
           path: dist/DM-Save-Update.exe
       - name: Release text (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')
         shell: pwsh
         run: |
           $hash = (Get-FileHash dist\DM-Save-Update.exe -Algorithm SHA256).Hash
@@ -55,7 +55,7 @@ jobs:
           python tools/release_notes.py "${{ github.ref_name }}" --sha256 $hash --out release-body.md
           Get-Content release-body.md
       - name: Release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')
         uses: softprops/action-gh-release@v2
         with:
           name: DM Save Update ${{ github.ref_name }}

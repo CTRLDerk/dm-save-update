@@ -112,6 +112,7 @@ class App(tk.Tk):
         self.saves, self.mods, self.extra_mods = [], [], []
         self.sel = {'mod': -1, 'save': -1}
         self.changes, self.notes = [], []
+        self.result_labels = None
         self.counts = None
         self.preview = None  # what 'Apply' will write: set by a preview
         self.saves_dir = tk.StringVar(value=steam.find_saves_dir())
@@ -361,6 +362,7 @@ class App(tk.Tk):
         self.tree.tag_configure('keep', foreground=P['gold'])
         self.tree.tag_configure('skip', foreground=P['faint'])
         self.tree.tag_configure('odd', background=P['row2'])
+        self.tree.tag_configure('done', foreground=P['green'])
 
         # footer and status are packed before the table so they stay visible in a small window
         status = self._label(main, textvariable=self.status, font='small', fg='faint', bg='asphalt', anchor='w')
@@ -767,6 +769,10 @@ class App(tk.Tk):
         rows = self.visible_changes()
         for n, (tag, values) in enumerate(rows):
             self.tree.insert('', 'end', tags=(tag, 'odd') if n % 2 else (tag,), values=values)
+        if self.result_labels and not self.changes:
+            # an empty table after a preview: say why
+            self.tree.insert('', 'end', tags=('done',), values=(
+                '', '', '', 'This save already matches the mod. Nothing to update.', '', '', ''))
         self.shown.set('%d of %d shown' % (len(rows), len(self.changes)) if self.changes else '')
 
     def save_report(self):
