@@ -28,7 +28,7 @@ def main(argv):
     ap.add_argument('--out', help='write UTF-8 to this file (the Windows console cannot show every character)')
     args = ap.parse_args(argv[1:])
     tag = args.tag
-    version = tag.lstrip('v')
+    version = tag.lstrip('vV')  # V1.0.0 is accepted too
     if version != __version__:
         sys.exit('Tag %s does not match __version__ %s' % (tag, __version__))
     changes = section(version)

@@ -1,7 +1,7 @@
 # Changelog
 
-## 0.3.0
-New look, an option for eras and a shorter report.
+## 1.0.0
+New look, an option for eras and a shorter report. Tested on American Oval Series saves (apply, a second preview with no differences, restore, report).
 
 - **Eras are no longer taken over by default.** The era list decides which votes come up in future seasons of a running career. New or changed eras now show as *keep (eras)*; tick **Add eras** (or `--add-eras`) to take them over.
 - **Report:** sponsors, naming sponsors and circuits that are not added or no longer in the mod are listed on one line per section (count, note once, then the names) instead of one line each.
@@ -12,6 +12,7 @@ New look, an option for eras and a shorter report.
 - The folders are under **Folders** at the bottom left; **…** replaces **Browse…**. Long paths show their end.
 - The **Changes** table can be filtered: free text over all columns, category, section and action (update, kept, skipped), with a count of the rows shown and **Clear**. This replaces the **Show kept and skipped** tick box; the legend shows the colours. **Save report…** still writes all rows.
 - Dark title bar on Windows 10 and 11.
+- When a save already matches the mod, the **Changes** table says so instead of staying empty.
 - The footer and status line stay visible in a small window; the row count sits next to the **Changes** heading.
 - Own icon for the exe, the window and the taskbar: the red/green slash with a chequered strip.
 - The window opens larger (1480 × 920, smaller on small screens) and centred.

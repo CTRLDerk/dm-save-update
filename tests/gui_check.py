@@ -95,6 +95,11 @@ def main():
     app.clear_filters()
     assert len(app.tree.get_children()) == total
 
+    # A save that already matches the mod: the table says so instead of staying empty.
+    app.show_result([], [], ('m', 's'))
+    rows = app.tree.get_children()
+    assert len(rows) == 1 and app.tree.item(rows[0], 'tags')[0] == 'done', rows
+
     # Apply the last preview, then the preview must show no updates and a backup must exist.
     assert str(app.apply_btn['state']) == 'normal'
     app.status.set('')
