@@ -85,7 +85,17 @@ python tools/verify.py --quick    # without the window check
 
 On GitHub Actions the `qa` job runs `verify.py` on Linux first; the Windows exe is only built when it passes (artifact `DM-Save-Update-exe`). The real mods are used when the repository secret `DM_MODS_TOKEN` (read access to `CTRLDerk/dm-mods`) is set.
 
-**Release:** set `__version__` in `dm_save_update/__init__.py`, add a `## X.Y.Z` section to `CHANGELOG.md`, merge to `main`, then push a tag `vX.Y.Z`. The workflow builds the exe, writes the release text (`tools/release_notes.py`: install notes from `.github/release-install.md` + the changelog section + SHA-256) and publishes the Release with the exe and its `.sha256` file. It refuses a tag that does not match `__version__`.
+**Changes:** write every user-visible change under `## Unreleased` in `CHANGELOG.md`, in the same pull request.
+
+**Release:**
+
+```
+python tools/release.py patch      # or minor, major, X.Y.Z; --dry-run to only look
+```
+
+It renames `## Unreleased` to `## X.Y.Z`, sets `__version__`, runs `verify.py --quick` and prints the git commands: commit, merge to `main`, then push the tag `vX.Y.Z`. The workflow builds the exe, writes the release text (`tools/release_notes.py`: install notes from `.github/release-install.md` + the changelog section + SHA-256) and publishes the Release with the exe and its `.sha256` file. It refuses a tag that does not match `__version__`.
+
+**Before every push (optional):** `git config core.hooksPath tools/hooks` runs `verify.py --quick` before each `git push`.
 
 Fonts: Barlow and Barlow Condensed (SIL Open Font License 1.1, `dm_save_update/fonts/OFL-Barlow.txt`), bundled in the exe.
 

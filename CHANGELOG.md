@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- A value `-0` from a mod is written as `0`, the way the game writes it (seen in WEC 2026). The save worked before too; now every written line matches the game.
+
 ## 0.3.0
 New look, an option for eras and a shorter report.
 
