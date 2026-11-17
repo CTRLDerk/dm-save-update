@@ -20,6 +20,12 @@
       "Bash(git push -f:*)",
       "Bash(gh release:*)",
       "Bash(gh pr merge:*)"
+    ],
+    "ask": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "mcp__github__create_pull_request",
+      "mcp__github__update_pull_request"
     ]
   },
   "hooks": {
@@ -27,7 +33,10 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.js\"" }
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.js\""
+          }
         ]
       }
     ]

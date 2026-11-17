@@ -3,6 +3,7 @@
    Blokkeert alles waarmee code zonder jouw tussenkomst gepubliceerd kan worden:
    pushen naar main/master, tags, force-push, branches verwijderen, releases,
    PR's mergen. Werken op een eigen branch en die pushen blijft gewoon mogelijk.
+   Daarnaast draait bij `git commit` en `git push` de JSON-poort (json-gate.js).
    Exitcode 2 = geblokkeerd; de reden gaat terug naar Claude. */
 'use strict';
 let raw = '';
@@ -32,6 +33,12 @@ process.stdin.on('data', d => raw += d).on('end', () => {
         'Werk op je eigen branch en laat mergen, taggen en releasen aan de eigenaar over.');
       process.exit(2);
     }
+  }
+  // JSON-poort: vóór elke commit en push de JSON laten controleren door validator en toolkit
+  const isPush = /\bgit\b[^;&|]*\bpush\b/.test(cmd), isCommit = /\bgit\b[^;&|]*\bcommit\b/.test(cmd);
+  if (isPush || isCommit) {
+    const gate = require('./json-gate.js').run(isPush ? 'push' : 'commit', input.cwd || process.cwd());
+    if (!gate.ok) { process.stderr.write(gate.report); process.exit(2); }
   }
   process.exit(0);
 });
