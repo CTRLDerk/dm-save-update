@@ -71,10 +71,19 @@ Ask players to run **Show changes** after an update and to send the report (*Sav
 ## Development
 
 ```
-python -m unittest discover -s tests -v
+python tools/verify.py            # every check, summary only (full output: build/verify.log)
+python tools/verify.py --quick    # without the window check
 ```
 
-Every push builds the Windows exe on GitHub Actions (artifact `DM-Save-Update-exe`).
+`verify.py` runs lint (ruff), the unit tests with a coverage threshold, the release text for the current version and the window check. Each optional extra makes it stronger and is reported as `SKIP` when missing (`--strict` turns a `SKIP` into a failure):
+
+| Extra | What it adds |
+|---|---|
+| `pip install ruff coverage` | lint and the coverage threshold (`pyproject.toml`) |
+| Node.js on `PATH` | `jsonfmt` is compared with `JSON.stringify`, which the game writes saves with: numbers, text and whole mods byte for byte |
+| a `dm-mods` clone next to this repository (or `DMSU_REAL_MODS=<folder with slot_N.json files>`) | every real mod: a fresh career shows 0 updates (also when an additional category is played); a career with older values gets exactly those values back from **Apply update**, byte-identical to the fresh career; comparing stays under 3 s |
+
+On GitHub Actions the `qa` job runs `verify.py` on Linux first; the Windows exe is only built when it passes (artifact `DM-Save-Update-exe`). The real mods are used when the repository secret `DM_MODS_TOKEN` (read access to `CTRLDerk/dm-mods`) is set.
 
 **Release:** set `__version__` in `dm_save_update/__init__.py`, add a `## X.Y.Z` section to `CHANGELOG.md`, merge to `main`, then push a tag `vX.Y.Z`. The workflow builds the exe, writes the release text (`tools/release_notes.py`: install notes from `.github/release-install.md` + the changelog section + SHA-256) and publishes the Release with the exe and its `.sha256` file. It refuses a tag that does not match `__version__`.
 

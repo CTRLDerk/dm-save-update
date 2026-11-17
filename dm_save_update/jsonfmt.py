@@ -14,6 +14,8 @@ def js_number(x):
         return str(x)
     if x != x or x in (float('inf'), float('-inf')):
         return 'null'  # what JSON.stringify writes for NaN / Infinity
+    if x == 0:
+        return '0'  # JSON.stringify(-0) is "0"; Python would write -0.0
     r = repr(x)
     if r.endswith('.0'):
         r = r[:-2]

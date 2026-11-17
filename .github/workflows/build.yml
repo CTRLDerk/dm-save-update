@@ -11,7 +11,41 @@ permissions:
   contents: write
 
 jobs:
+  qa:
+    # Fast checks on Linux before the Windows build: lint, tests with coverage threshold,
+    # jsonfmt against Node's JSON.stringify and, when the token is set, the real mods from dm-mods.
+    runs-on: ubuntu-latest
+    env:
+      DM_MODS_TOKEN: ${{ secrets.DM_MODS_TOKEN }}  # read access to the private CTRLDerk/dm-mods (optional)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: dm-save-update
+      - name: Real mods (dm-mods)
+        if: env.DM_MODS_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: CTRLDerk/dm-mods
+          token: ${{ secrets.DM_MODS_TOKEN }}
+          path: dm-mods
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'  # as the exe; ruff (target py38) guards the 3.8 syntax
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install --upgrade pip ruff coverage
+      - name: Verify
+        working-directory: dm-save-update
+        # --strict only when the real mods are there: without the token they are reported as SKIP
+        run: python tools/verify.py --quick ${{ env.DM_MODS_TOKEN != '' && '--strict' || '' }}
+      - name: Log
+        if: always()
+        working-directory: dm-save-update
+        run: cat build/verify.log
+
   exe:
+    needs: qa
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,8 +54,6 @@ jobs:
           python-version: '3.12'
       - name: Tests
         run: python -m unittest discover -s tests -v
-      - name: Release text can be made for this version
-        run: python tools/release_notes.py "v$(python -c 'import dm_save_update as d; print(d.__version__)')" --out release-check.md
       - name: Window check (lists, selection, preview)
         run: python -m tests.gui_check
       - name: Build exe

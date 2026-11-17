@@ -116,7 +116,8 @@ class CompareTest(unittest.TestCase):
         self.assertTrue(by(changes, section='circuits', path='officialName', old='old name', new='6 Hours of Track 1'))
 
     def test_image_paths_made_absolute_by_the_game(self):
-        self.assertTrue(core.same_value('./sponsors/a b.png', 'D:/Steam/steamapps/common/Delta Manager/resources/sponsors/a b.png'))
+        self.assertTrue(core.same_value('./sponsors/a b.png',
+                                        'D:/Steam/steamapps/common/Delta Manager/resources/sponsors/a b.png'))
         self.assertTrue(core.same_value('./teams/x.png', 'D:\\Steam\\steamapps\\common\\Delta Manager\\resources\\teams/x.png'))
         self.assertFalse(core.same_value('./sponsors/a.png', 'D:/Steam/.../resources/sponsors/b.png'))
         self.assertFalse(core.same_value('Red Bull', 'red bull'))

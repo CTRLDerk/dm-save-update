@@ -1,0 +1,22 @@
+# Tool settings only: DM Save Update is not installed as a package (python update.py / the exe).
+
+[tool.ruff]
+line-length = 130
+target-version = "py38"  # README: Python 3.8 or newer
+extend-exclude = ["build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B"]
+# zip(strict=) needs Python 3.10; every zip here pairs lists whose length is checked first.
+ignore = ["B905"]
+
+[tool.coverage.run]
+branch = true
+source = ["dm_save_update"]
+# The window is checked by tests/gui_check.py on Windows CI, not by the unit tests.
+omit = ["dm_save_update/gui.py"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true

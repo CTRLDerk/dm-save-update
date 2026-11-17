@@ -6,3 +6,4 @@ dist/
 smoke*
 release-body.md
 release-check.md
+.coverage
